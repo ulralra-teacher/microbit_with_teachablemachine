@@ -1,0 +1,1552 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI × micro:bit 실습 자동 채점 시스템</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<style>
+:root{
+  --ink:#14202b; --mute:#566574; --paper:#eef3f0; --card:#fff; --line:#d3ddd8;
+  --teal:#0b7a6b; --teal-d:#085c51; --teal-bg:#e2f2ee;
+  --led:#ff3d57; --led-off:#2b303b; --board:#171a21;
+  --bad:#b83232; --bad-bg:#fbeaea; --yellow:#ffd25a; --r:10px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.65 'Pretendard','Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;letter-spacing:-.005em}
+h1,h2,h3,p{margin:0}
+a{color:var(--teal-d)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--yellow);outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 18px}
+
+/* 상단 */
+.top{background:var(--board);color:#fff}
+.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-top:16px;padding-bottom:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:14px}
+.mini{display:grid;grid-template-columns:repeat(5,9px);gap:4px;padding:9px;background:#0d0f14;border-radius:8px}
+.mini i{width:9px;height:9px;border-radius:50%;background:var(--led-off)}
+.mini i.on{background:var(--led);box-shadow:0 0 8px var(--led)}
+.brand h1{font-size:1.25rem;font-weight:800;letter-spacing:-.02em;line-height:1.25}
+.brand p{font-size:.86rem;color:#aab4c0}
+.top-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+.btn{border:0;border-radius:8px;padding:10px 16px;font-weight:700;cursor:pointer;background:var(--teal);color:#fff;line-height:1.3}
+.btn:hover{background:var(--teal-d)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.ghost{background:transparent;color:inherit;box-shadow:inset 0 0 0 1.5px currentColor}
+.btn.ghost:hover{background:rgba(127,127,127,.14)}
+.btn.sm{padding:6px 11px;font-size:.88rem}
+.btn.led{background:var(--led)}.btn.led:hover{background:#e12a45}
+.top .btn.ghost{color:#dce3ea}
+
+/* 대시보드 */
+.dash{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-top:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px}
+.card h3{font-size:1.08rem;font-weight:800;letter-spacing:-.015em}
+.progress{height:12px;background:#e3eae6;border-radius:99px;overflow:hidden;margin:10px 0 14px}
+.progress b{display:block;height:100%;width:0;background:var(--teal);transition:width .4s}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{background:#f5f8f6;border-radius:8px;padding:8px 12px}
+.stat span{display:block;font-size:.8rem;color:var(--mute)}
+.stat b{font-size:1.45rem;font-variant-numeric:tabular-nums}
+.pct{font-size:1.9rem;font-weight:800;color:var(--teal-d)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.field{flex:1 1 130px}
+.field label{display:block;font-size:.84rem;font-weight:700;color:var(--mute);margin-bottom:3px}
+input[type=text],textarea,select{width:100%;border:1.5px solid #b9c7c0;border-radius:8px;padding:9px 11px;background:#fff}
+textarea{resize:vertical;line-height:1.5}
+.small{font-size:.86rem;color:var(--mute)}
+
+/* 탭 */
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0 14px}
+.tab{background:var(--card);border:1px solid var(--line);border-bottom:4px solid var(--line);border-radius:var(--r);padding:12px 14px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:2px}
+.tab:hover{border-color:#9fb4ab}
+.tab[aria-selected=true]{border-color:var(--teal);border-bottom-color:var(--teal);background:var(--teal-bg)}
+.tab .t1{display:flex;justify-content:space-between;align-items:center;font-size:.8rem;color:var(--mute);font-weight:700}
+.tab .t2{font-weight:800;font-size:1.02rem;letter-spacing:-.015em}
+.tab .t3{font-size:.84rem;color:var(--mute)}
+.badge{font-size:.76rem;font-weight:800;padding:1px 8px;border-radius:99px;background:#e6ece9;color:var(--mute)}
+.badge.done{background:var(--teal);color:#fff}
+.badge.work{background:var(--yellow);color:#4a3600}
+
+/* 실습 본문 */
+.lab-head{display:grid;grid-template-columns:1.2fr 1fr;gap:16px;margin-bottom:16px}
+.lab-head h2{font-size:1.45rem;font-weight:800;letter-spacing:-.025em;margin:2px 0 8px}
+.lvl{font-size:.82rem;font-weight:800;color:var(--teal-d)}
+.mission{font-size:1.02rem}
+dl.std{margin:0;display:grid;gap:10px}
+dl.std dt{font-size:.8rem;font-weight:800;color:var(--teal-d)}
+dl.std dd{margin:0;font-size:.94rem}
+ol.steps{margin:6px 0 0;padding-left:1.25em}
+ol.steps li{margin:4px 0}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:16px;align-items:start}
+.col{display:grid;gap:14px}
+.card h3 .n{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--ink);color:#fff;font-size:.86rem;margin-right:8px;vertical-align:1px}
+.card .lead{color:var(--mute);font-size:.93rem;margin:4px 0 12px}
+.seg{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.seg label{cursor:pointer}
+.seg input{position:absolute;opacity:0}
+.seg span{display:inline-block;padding:7px 14px;border:1.5px solid #b9c7c0;border-radius:99px;font-weight:700;font-size:.92rem}
+.seg input:checked+span{background:var(--ink);color:#fff;border-color:var(--ink)}
+.seg input:focus-visible+span{outline:3px solid var(--yellow);outline-offset:2px}
+.msg{margin-top:10px;padding:9px 12px;border-radius:8px;font-size:.93rem;background:#f1f5f3}
+.msg.ok{background:var(--teal-bg);color:var(--teal-d)}
+.msg.err{background:var(--bad-bg);color:var(--bad)}
+
+/* 연결표 */
+table.map{width:100%;border-collapse:collapse}
+table.map th{font-size:.82rem;text-align:left;color:var(--mute);padding:4px 8px}
+table.map td{padding:6px 8px;border-top:1px solid var(--line);vertical-align:middle}
+.sig{display:inline-grid;place-items:center;min-width:30px;height:30px;border-radius:7px;background:var(--board);color:#fff;font-weight:800;font-family:ui-monospace,Consolas,monospace}
+button.sig{border:0;cursor:pointer}
+button.sig:hover{background:var(--led)}
+.empty{padding:16px;text-align:center;color:var(--mute);background:#f5f8f6;border-radius:8px}
+
+/* 코드 */
+details.ex{margin:10px 0;border:1px dashed #9fb4ab;border-radius:8px;padding:8px 12px}
+details.ex summary{cursor:pointer;font-weight:700}
+pre.code{margin:8px 0;padding:12px;background:var(--board);color:#e8edf2;border-radius:8px;overflow:auto;font:13.5px/1.55 ui-monospace,Consolas,monospace;white-space:pre}
+textarea.codebox{font:13.5px/1.5 ui-monospace,Consolas,monospace;min-height:150px;white-space:pre}
+.counter{font-size:.82rem;color:var(--mute);text-align:right}
+.counter.good{color:var(--teal-d);font-weight:700}
+.note{margin-bottom:12px}
+.note label{display:block;font-weight:700;margin-bottom:2px}
+
+/* 결과 */
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+ul.check{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px}
+ul.check li{display:grid;grid-template-columns:24px 1fr;gap:8px;padding:8px 10px;border-radius:8px;background:#f5f8f6}
+ul.check li.ok .mk{color:var(--teal);font-weight:800}
+ul.check li.no{background:var(--bad-bg)}
+ul.check li.no .mk{color:var(--bad);font-weight:800}
+ul.check .hint{display:block;font-size:.88rem;color:var(--bad)}
+ul.check li.no.opt{background:#f5f8f6}
+ul.check li.no.opt .mk,ul.check li.no.opt .hint{color:var(--mute)}
+.verdict{font-weight:800;font-size:1.05rem}
+.verdict.ok{color:var(--teal-d)}.verdict.no{color:var(--bad)}
+
+/* 위아래로 쌓이는 카드 · 두 칸 배치 */
+.stack{display:grid;gap:16px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.labgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+.labgrid h4{margin:0 0 6px;font-size:.95rem}
+
+/* MakeCode 편집기 */
+.mc-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.mc-tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mc-stat{font-size:.86rem;color:var(--mute)}
+.mcbox{height:780px;margin-top:6px;border:1.5px solid #b9c7c0;border-radius:10px;overflow:hidden;background:#f5f8f6}
+.mcbox iframe{display:block;width:100%;height:100%;border:0}
+#mcCard.mcfull{position:fixed;inset:0;z-index:60;border-radius:0;display:flex;flex-direction:column;overflow:auto}
+#mcCard.mcfull .mcbox{flex:1;height:auto;min-height:420px}
+#mcCard.mcfull .lead,#mcCard.mcfull details,#mcCard.mcfull .msg,#mcCard.mcfull .mc-after{display:none}
+
+/* 가상 마이크로비트 · 실험실 */
+.board{background:var(--board);border-radius:14px;padding:16px 16px 14px;color:#fff}
+.leds{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;max-width:230px;margin:0 auto;padding:14px;background:#0d0f14;border-radius:10px}
+.leds i{aspect-ratio:1;border-radius:50%;background:var(--led-off);transition:background .12s,box-shadow .12s}
+.leds i.on{background:var(--led);box-shadow:0 0 12px 2px rgba(255,61,87,.65)}
+.cap{margin-top:10px;text-align:center;font-size:.9rem;color:#c9d1da;min-height:1.6em}
+.board .ab{display:flex;justify-content:space-between;align-items:center;font-size:.8rem;color:#98a4b1;margin-bottom:8px}
+.cam{background:#0d0f14;border-radius:10px;min-height:120px;display:grid;place-items:center;overflow:hidden;color:#98a4b1;font-size:.9rem;text-align:center;padding:0}
+.cam canvas{display:block;max-width:100%;height:auto}
+.bars{display:grid;gap:6px;margin-top:10px}
+.bar{display:grid;grid-template-columns:minmax(70px,1fr) 2fr 38px;gap:8px;align-items:center;font-size:.86rem}
+.bar .bn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .bn i{font-style:normal;font-family:ui-monospace,Consolas,monospace;background:var(--board);color:#fff;border-radius:4px;padding:0 5px;margin-left:4px;font-size:.76rem}
+.bar.un .bn{color:var(--mute)}
+.track{height:10px;background:#e3eae6;border-radius:99px;overflow:hidden}
+.fill{height:100%;width:0;background:var(--teal)}
+.bar.hi .fill{background:var(--led)}
+.pc{text-align:right;font-variant-numeric:tabular-nums;color:var(--mute)}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#b9c7c0;margin-right:6px}
+.dot.on{background:#2fbf71;box-shadow:0 0 6px #2fbf71}
+.tests{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+
+/* 모달 · 토스트 */
+dialog{border:0;border-radius:14px;padding:22px;max-width:min(980px,94vw);width:100%;box-shadow:0 18px 60px rgba(0,0,0,.35)}
+dialog::backdrop{background:rgba(10,16,22,.6)}
+.dlg-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.tblwrap{overflow:auto;max-height:46vh;border:1px solid var(--line);border-radius:8px;margin-top:10px}
+table.res{border-collapse:collapse;width:100%;font-size:.86rem}
+table.res th,table.res td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+table.res th{position:sticky;top:0;background:#f1f5f3}
+td.okc{color:var(--teal-d);font-weight:800}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:10px 18px;border-radius:99px;opacity:0;pointer-events:none;transition:.25s;z-index:99;max-width:92vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%)}
+footer{padding:26px 0 40px;color:var(--mute);font-size:.85rem}
+
+@media (max-width:900px){
+  .dash,.lab-head,.pair,.labgrid{grid-template-columns:1fr}
+  .tabs{grid-template-columns:1fr 1fr}
+  .mcbox{height:640px}
+}
+@media (max-width:520px){.tabs{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr 1fr}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <div class="mini" id="logoLeds" aria-hidden="true"></div>
+      <div>
+        <h1>AI × micro:bit 실습 자동 채점</h1>
+        <p>내가 학습시킨 인공지능으로 마이크로비트를 움직여요</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button class="btn ghost sm" id="btnTeacher" type="button">교사 모드</button>
+      <button class="btn ghost sm" id="btnReset" type="button">전체 새로 시작</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="dash" aria-label="진행 현황">
+    <div class="card">
+      <div class="row" style="justify-content:space-between;align-items:baseline">
+        <h3>실습 진행 현황</h3><span class="pct" id="pct">0%</span>
+      </div>
+      <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="pbar"><b id="pfill"></b></div>
+      <div class="stats">
+        <div class="stat"><span>전체 실습</span><b id="stAll">4</b></div>
+        <div class="stat"><span>완성한 실습</span><b id="stDone">0</b></div>
+        <div class="stat"><span>총 제출 횟수</span><b id="stSub">0</b></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>학생 정보</h3>
+      <p class="small" style="margin:2px 0 10px">학번과 이름은 이 컴퓨터에 자동으로 저장돼요.</p>
+      <div class="row">
+        <div class="field"><label for="inSid">학번</label><input type="text" id="inSid" inputmode="numeric" autocomplete="off" placeholder="예) 10101"></div>
+        <div class="field"><label for="inName">이름</label><input type="text" id="inName" autocomplete="off" placeholder="예) 홍길동"></div>
+      </div>
+    </div>
+  </section>
+
+  <nav class="tabs" id="tabs" role="tablist" aria-label="실습 선택"></nav>
+  <section id="labView"></section>
+</main>
+
+<footer class="wrap">
+  <p>카메라·마이크·USB 연결은 Chrome 또는 Edge 브라우저에서 잘 동작해요. 카메라와 마이크 영상·소리는 이 컴퓨터 밖으로 나가지 않고, 인식 결과 숫자만 사용돼요. MakeCode 편집기는 makecode.microbit.org 에서 불러와요. 학교 네트워크에서 막혀 있으면 3번의 ‘직접 붙여 넣기’를 써요.</p>
+</footer>
+
+<dialog id="dlg"></dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+'use strict';
+/* ============================================================
+   설정 (교사가 수정하는 부분)
+   ============================================================ */
+const CONFIG = {
+  teacherPassword: '1234',     // 교사 모드 비밀번호 — 꼭 바꿔서 배포하세요
+  sheetUrl: '',                // 구글 앱스크립트 웹앱 주소(비우면 서버로 보내지 않음)
+  showExampleCode: true,       // 학생에게 '예시 코드 보기' 제공 여부
+  requireRealDevice: false,    // true: 실제 마이크로비트로 신호를 보내야 완성 처리
+  confidence: 0.8,             // 이 확률 이상일 때만 신호를 보냄 (0~1)
+  sendIntervalMs: 600,         // 신호 사이 최소 간격
+  mcUrl: 'https://makecode.microbit.org/?controller=1&lang=ko',  // 앱 안에 넣을 MakeCode 편집기 주소
+  mcLoadTimeoutMs: 25000,      // 이 시간 안에 편집기가 응답하지 않으면 '직접 붙여 넣기'를 안내
+  salt: 'mbai-2026-nov'        // 결과 코드 변조 방지용 문자열(아무 글자나 가능)
+};
+
+const TM_LINKS = {
+  image: 'https://teachablemachine.withgoogle.com/train/image',
+  pose: 'https://teachablemachine.withgoogle.com/train/pose',
+  audio: 'https://teachablemachine.withgoogle.com/train/audio',
+  makecode: 'https://makecode.microbit.org/'
+};
+
+const TYPE_LABEL = { image: '이미지', pose: '포즈', audio: '소리' };
+
+/* ============================================================
+   마이크로비트 동작 목록
+   js : MakeCode JavaScript 코드 / re : 채점할 때 찾는 패턴
+   led: 5x5 미리보기 (# = 켜짐)
+   ============================================================ */
+const P = (s) => s.split('|');
+const ACTIONS = [
+  { id: 'i_heart', group: 'LED 그림', label: '하트', js: 'basic.showIcon(IconNames.Heart)', re: /IconNames\.Heart\b/, led: P('.#.#.|#####|#####|.###.|..#..') },
+  { id: 'i_happy', group: 'LED 그림', label: '웃는 얼굴', js: 'basic.showIcon(IconNames.Happy)', re: /IconNames\.Happy\b/, led: P('.....|.#.#.|.....|#...#|.###.') },
+  { id: 'i_sad', group: 'LED 그림', label: '슬픈 얼굴', js: 'basic.showIcon(IconNames.Sad)', re: /IconNames\.Sad\b/, led: P('.....|.#.#.|.....|.###.|#...#') },
+  { id: 'i_surprised', group: 'LED 그림', label: '놀란 얼굴', js: 'basic.showIcon(IconNames.Surprised)', re: /IconNames\.Surprised\b/, led: P('.#.#.|.....|..#..|.#.#.|..#..') },
+  { id: 'i_angry', group: 'LED 그림', label: '화난 얼굴', js: 'basic.showIcon(IconNames.Angry)', re: /IconNames\.Angry\b/, led: P('#...#|.#.#.|.....|#####|#.#.#') },
+  { id: 'i_asleep', group: 'LED 그림', label: '잠자는 얼굴', js: 'basic.showIcon(IconNames.Asleep)', re: /IconNames\.Asleep\b/, led: P('.....|##.##|.....|.###.|.....') },
+  { id: 'i_yes', group: 'LED 그림', label: '체크(O)', js: 'basic.showIcon(IconNames.Yes)', re: /IconNames\.Yes\b/, led: P('.....|....#|...#.|#.#..|.#...') },
+  { id: 'i_no', group: 'LED 그림', label: 'X 표시', js: 'basic.showIcon(IconNames.No)', re: /IconNames\.No\b/, led: P('#...#|.#.#.|..#..|.#.#.|#...#') },
+  { id: 'a_n', group: '화살표', label: '위쪽 화살표', js: 'basic.showArrow(ArrowNames.North)', re: /ArrowNames\.North\b/, led: P('..#..|.###.|#.#.#|..#..|..#..') },
+  { id: 'a_e', group: '화살표', label: '오른쪽 화살표', js: 'basic.showArrow(ArrowNames.East)', re: /ArrowNames\.East\b/, led: P('..#..|...#.|#####|...#.|..#..') },
+  { id: 'a_s', group: '화살표', label: '아래쪽 화살표', js: 'basic.showArrow(ArrowNames.South)', re: /ArrowNames\.South\b/, led: P('..#..|..#..|#.#.#|.###.|..#..') },
+  { id: 'a_w', group: '화살표', label: '왼쪽 화살표', js: 'basic.showArrow(ArrowNames.West)', re: /ArrowNames\.West\b/, led: P('..#..|.#...|#####|.#...|..#..') },
+  { id: 's_do', group: '소리', label: '도(262Hz)', js: 'music.playTone(262, music.beat(BeatFraction.Whole))', re: /music\.playTone\(\s*(262|Note\.C)\b/, freq: 262, led: P('..##.|..#.#|..#..|.##..|.##..') },
+  { id: 's_re', group: '소리', label: '레(294Hz)', js: 'music.playTone(294, music.beat(BeatFraction.Whole))', re: /music\.playTone\(\s*(294|Note\.D)\b/, freq: 294, led: P('..##.|..#.#|..#..|.##..|.##..') },
+  { id: 's_mi', group: '소리', label: '미(330Hz)', js: 'music.playTone(330, music.beat(BeatFraction.Whole))', re: /music\.playTone\(\s*(330|Note\.E)\b/, freq: 330, led: P('..##.|..#.#|..#..|.##..|.##..') },
+  { id: 's_sol', group: '소리', label: '솔(392Hz)', js: 'music.playTone(392, music.beat(BeatFraction.Whole))', re: /music\.playTone\(\s*(392|Note\.G)\b/, freq: 392, led: P('..##.|..#.#|..#..|.##..|.##..') },
+  { id: 'off', group: '끄기', label: 'LED 끄기', js: 'basic.clearScreen()', re: /basic\.clearScreen\(\)/, led: P('.....|.....|.....|.....|.....') }
+];
+const ACT = {};
+const ALL_OFF = '.'.repeat(25);
+const ICON_PAT = {}, ARROW_PAT = {};   // 코드 실행 결과(그림 이름)를 LED 모양과 맞춰 볼 때 사용
+ACTIONS.forEach((a) => {
+  ACT[a.id] = a;
+  a.pat = a.led.join('');
+  let m;
+  if ((m = /IconNames\.(\w+)/.exec(a.js))) { a.kind = 'icon'; a.name = m[1]; ICON_PAT[m[1]] = a.pat; }
+  else if ((m = /ArrowNames\.(\w+)/.exec(a.js))) { a.kind = 'arrow'; a.name = m[1]; ARROW_PAT[m[1]] = a.pat; }
+  else if (a.freq) a.kind = 'tone';
+  else a.kind = 'clear';
+});
+
+const MC_STEP = '3번 MakeCode 편집기에서 블록을 쌓아요. <b>시리얼통신 수신 데이터가 들어왔을 때</b>(줄 바꿈 문자 기준) 블록 안에서 <b>시리얼통신 수신: 줄 바꿈 문자 전까지</b>로 신호(A, B, C…)를 읽고, 신호마다 연결표의 동작을 하게 만들어요. 코드는 자동으로 저장돼요.';
+
+/* ============================================================
+   실습 문항 4개
+   (standard/expect 문구는 교육과정 원문에 맞게 고쳐 쓰세요)
+   ============================================================ */
+const LABS = [
+  {
+    id: 1, type: 'image', level: '기초', emoji: '🙂',
+    title: '표정 로봇', sub: '이미지 모델로 LED 바꾸기',
+    mission: '카메라 앞에서 보여 주는 모습(표정·손동작·물건)을 인공지능이 알아보고, 마이크로비트 LED가 그에 맞게 바뀌도록 만들어 보세요.',
+    standard: '데이터로 인공지능 모델을 학습시키고, 그 결과를 피지컬 컴퓨팅 장치에 적용하는 과정을 체험한다.',
+    expect: '이미지 모델의 분류 결과(클래스)가 마이크로비트 LED 동작으로 이어지는 흐름을 설명하고 만들 수 있다.',
+    minClasses: 3, minActions: 3, minTest: 2, minGroups: 1,
+    notes: [
+      { id: 'n1', label: '내 모델은 어떤 데이터로 학습시켰나요?', hint: '클래스 이름, 사진 수, 어떻게 찍었는지(각도·거리·배경)를 써 보세요.', min: 20 }
+    ],
+    steps: [
+      '<a href="{image}" target="_blank" rel="noopener">Teachable Machine 이미지 프로젝트</a>에서 클래스를 3개 이상 만들고, 클래스마다 사진을 30장 이상 모아 모델을 학습시켜요.',
+      '[모델 내보내기] → [모델 업로드]를 눌러 나온 공유 링크를 복사해서 아래 1번 칸에 붙여 넣어요.',
+      '2번 연결표에서 클래스마다 마이크로비트가 할 동작을 골라요.',
+      MC_STEP,
+      '4번에서 카메라를 켜고, 내 코드가 인공지능 신호에 맞게 움직이는지 가상 마이크로비트로 확인해요. 잘 되면 진짜 마이크로비트도 연결해 봐요.'
+    ]
+  },
+  {
+    id: 2, type: 'pose', level: '기초+', emoji: '🧍',
+    title: '몸으로 하는 리모컨', sub: '포즈 모델로 방향 알려 주기',
+    mission: '내 몸의 자세(팔 들기, 한쪽으로 기울이기 등)를 인공지능이 알아보고, 마이크로비트 화살표가 방향을 가리키게 만들어 보세요.',
+    standard: '데이터로 인공지능 모델을 학습시키고, 그 결과를 피지컬 컴퓨팅 장치에 적용하는 과정을 체험한다.',
+    expect: '포즈 모델이 자세를 분류하는 원리를 이해하고, 분류 결과로 장치를 제어하는 프로그램을 만들 수 있다.',
+    minClasses: 3, minActions: 3, minTest: 2, minGroups: 1,
+    notes: [
+      { id: 'n1', label: '인식이 잘 안 되는 자세가 있었나요? 왜 그랬을까요?', hint: '두 자세가 비슷했는지, 학습 데이터가 적었는지 등 이유를 생각해 써 보세요.', min: 20 }
+    ],
+    steps: [
+      '<a href="{pose}" target="_blank" rel="noopener">Teachable Machine 포즈 프로젝트</a>에서 자세를 3개 이상 만들어요. 자세끼리 확실히 다르게 하면 더 잘 맞혀요.',
+      '카메라 앞에서 한 자세당 30장 이상 찍고 학습시킨 뒤, 모델 업로드 링크를 1번 칸에 붙여 넣어요.',
+      '2번 연결표에서 자세마다 화살표(또는 다른 동작)를 골라요.',
+      MC_STEP,
+      '4번에서 카메라를 켜고 자세를 바꿔 가며 내 코드가 제대로 반응하는지 확인해요.'
+    ]
+  },
+  {
+    id: 3, type: 'audio', level: '중급', emoji: '👏',
+    title: '소리 스위치', sub: '소리 모델로 LED·음 제어하기',
+    mission: '박수, 휘파람, 말소리 같은 소리를 인공지능이 구별하고, 소리에 따라 마이크로비트가 그림이나 음으로 반응하게 만들어 보세요.',
+    standard: '데이터로 인공지능 모델을 학습시키고, 그 결과를 피지컬 컴퓨팅 장치에 적용하는 과정을 체험한다.',
+    expect: '소리 데이터를 학습한 모델의 결과를 이용해 장치를 제어하고, 인식 정확도를 높이는 방법을 설명할 수 있다.',
+    minClasses: 3, minActions: 3, minTest: 2, minGroups: 1,
+    notes: [
+      { id: 'n1', label: '소리를 더 정확하게 구별하게 하려면 어떻게 하면 좋을까요?', hint: '‘배경 소음’ 클래스, 소리 샘플 수, 녹음 환경을 떠올려 써 보세요.', min: 20 }
+    ],
+    steps: [
+      '<a href="{audio}" target="_blank" rel="noopener">Teachable Machine 오디오 프로젝트</a>에서 ‘배경 소음’ 클래스에 조용한 교실 소리를 20개 이상 녹음해요.',
+      '소리 클래스를 2개 이상 더 만들고(예: 박수, 휘파람) 각각 15개 이상 녹음한 뒤 학습시켜요. 모델 업로드 링크는 1번 칸에 붙여 넣어요.',
+      '2번 연결표에서 소리마다 동작을 골라요. ‘배경 소음’은 LED 끄기가 어울려요.',
+      MC_STEP,
+      '4번에서 마이크를 켜고 소리를 내 보며 내 코드가 제대로 반응하는지 확인해요.'
+    ]
+  },
+  {
+    id: 4, type: 'any', level: '종합', emoji: '🛠️',
+    title: '우리 생활 문제 해결', sub: '나만의 AI + 마이크로비트',
+    mission: '이미지·포즈·소리 중 알맞은 모델을 골라, 생활 속 불편이나 문제를 해결하는 나만의 인공지능 장치를 만들어 보세요.',
+    standard: '문제 해결에 알맞은 인공지능 모델을 선택해 학습시키고, 피지컬 컴퓨팅 장치로 구현해 개선한다.',
+    expect: '해결할 문제에 맞는 모델과 출력 방식을 스스로 선택하고, 한계와 개선점을 설명할 수 있다.',
+    minClasses: 3, minActions: 4, minTest: 3, minGroups: 2,
+    notes: [
+      { id: 'n1', label: '어떤 문제를 해결하려고 하나요? 누가 어떻게 사용하나요?', hint: '예) 도서관에서 큰 소리가 나면 LED로 조용히 하라고 알려 주는 장치', min: 30 },
+      { id: 'n2', label: '모델을 고른 까닭과, 더 좋게 만들 방법을 써 보세요.', hint: '왜 이미지/포즈/소리 중 이 모델을 골랐는지, 잘못 인식한 경우를 어떻게 줄일지 써 보세요.', min: 30 }
+    ],
+    steps: [
+      '해결하고 싶은 문제를 정하고, 알맞은 모델(이미지·포즈·소리)을 골라요. 1번 칸에서 모델 종류를 선택할 수 있어요.',
+      'Teachable Machine에서 모델을 만들어 업로드하고 링크를 1번 칸에 붙여 넣어요. 클래스는 3개 이상이에요.',
+      '연결표에서 동작을 4개 이상 서로 다르게 고르고, LED 그림과 소리처럼 서로 다른 종류를 함께 써 보세요.',
+      MC_STEP + ' 4번에서 서로 다른 클래스 3개 이상을 인식시켜 확인해요.',
+      '문제 해결 과정과 개선 방안을 글로 정리해 제출해요.'
+    ]
+  }
+];
+
+const SIGNALS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+'use strict';
+/* ============================================================
+   DOM과 상관없는 순수 로직: 모델 주소, 코드 실행 채점, 결과 코드, CSV
+   ============================================================ */
+
+function normalizeModelUrl(input) {
+  let u = String(input || '').trim();
+  if (!u) return { ok: false, msg: '모델 링크를 붙여 넣어 주세요.' };
+  if (!/^https:\/\//i.test(u)) return { ok: false, msg: '링크는 https:// 로 시작해야 해요. Teachable Machine에서 복사한 공유 링크를 붙여 넣어 보세요.' };
+  u = u.replace(/[?#].*$/, '').replace(/(model|metadata)\.json$/i, '');
+  if (!u.endsWith('/')) u += '/';
+  return { ok: true, url: u };
+}
+
+function signalFor(i) { return SIGNALS[i] || '?'; }
+
+function mappedRows(st) {
+  const rows = [];
+  (st.classes || []).forEach((cls, i) => {
+    const a = st.map && st.map[cls];
+    if (a && ACT[a]) rows.push({ cls, sig: signalFor(i), action: a });
+  });
+  return rows;
+}
+
+function actionKind(id) { return ACT[id].group === '소리' ? 'sound' : 'led'; }
+
+function genCode(rows) {
+  if (!rows.length) return '// 2번 연결표에서 클래스마다 동작을 먼저 골라 주세요.';
+  const out = [];
+  out.push('serial.onDataReceived(serial.delimiters(Delimiters.NewLine), function () {');
+  out.push('    let cmd = serial.readUntil(serial.delimiters(Delimiters.NewLine))');
+  rows.forEach((r, i) => {
+    out.push('    ' + (i === 0 ? 'if' : '} else if') + ' (cmd == "' + r.sig + '") {  // ' + r.cls);
+    out.push('        ' + ACT[r.action].js);
+  });
+  out.push('    }');
+  out.push('})');
+  return out.join('\n');
+}
+
+function stripComments(code) {
+  return String(code || '').replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/.*$/gm, '');
+}
+
+/* ---------- 코드 가져오기 ---------- */
+/* 직접 붙여 넣은 코드가 있으면 그것을, 없으면 MakeCode 편집기에서 자동으로 읽은 코드를 쓴다 */
+function effectiveCode(st) {
+  const p = String((st && st.paste) || '');
+  return p.trim() ? p : String((st && st.code) || '');
+}
+function projectCode(project) {
+  const t = project && project.text;
+  const ts = t && t['main.ts'];
+  return typeof ts === 'string' ? ts : '';
+}
+
+/* ---------- 수신 블록 검사(정적) ---------- */
+function receiverOK(code) {
+  const src = stripComments(code);
+  return /serial\.onDataReceived\s*\(/.test(src) &&
+    /serial\.readUntil\s*\(\s*serial\.delimiters\s*\(\s*Delimiters\.NewLine\s*\)\s*\)/.test(src);
+}
+function receiverHint(code) {
+  const src = stripComments(code);
+  if (/serial\.readLine\s*\(/.test(src)) return '‘시리얼통신 수신: 한 줄’ 블록은 이 실습에서 제대로 동작하지 않아요. ‘시리얼통신 수신: 줄 바꿈 문자 전까지’ 블록으로 바꿔 보세요.';
+  return '‘시리얼통신 수신 데이터가 들어왔을 때(줄 바꿈 문자 기준)’ 블록 안에서 ‘시리얼통신 수신: 줄 바꿈 문자 전까지’ 블록으로 신호를 읽어야 해요.';
+}
+
+/* 코드를 실행하지 못할 때만 쓰는 글자 모양 검사 */
+function checkCode(code, rows) {
+  const src = stripComments(code);
+  const hasReceiver = receiverOK(code);
+  const cmpRe = /={2,3}\s*["']([A-Za-z0-9])["']/g;
+  const hits = [];
+  let m;
+  while ((m = cmpRe.exec(src))) hits.push({ sig: m[1], idx: m.index });
+  const res = rows.map((r) => {
+    const mine = hits.filter((h) => h.sig === r.sig);
+    let ok = false;
+    for (const h of mine) {
+      const next = hits.find((x) => x.idx > h.idx);
+      const seg = src.slice(h.idx, next ? next.idx : src.length);
+      if (ACT[r.action].re.test(seg)) { ok = true; break; }
+    }
+    return Object.assign({}, r, { found: mine.length > 0, ok });
+  });
+  return { hasReceiver, rows: res, ok: hasReceiver && res.length > 0 && res.every((r) => r.ok) };
+}
+
+/* ---------- 실행 결과(사건 목록) 해석 ---------- */
+const evSig = (e) => e.k + '|' + (e.name || e.f || e.text || e.pat || '');
+
+/* 신호가 들어온 뒤에 '새로' 일어난 일만 남긴다(처음부터 계속 보이던 것은 신호와 상관없으므로 제외) */
+function postEvents(events) {
+  const pre = new Set((events || []).filter((e) => e.ph === 'pre').map(evSig));
+  return (events || []).filter((e) => e.ph !== 'pre' && (e.h || !pre.has(evSig(e))));
+}
+
+function matchAction(events, id) {
+  const a = ACT[id];
+  return postEvents(events).some((e) => {
+    if (a.kind === 'tone') return e.k === 'tone' && Math.round(e.f) === a.freq;
+    if (a.kind === 'clear') return e.pat === ALL_OFF;
+    return (e.k === a.kind && e.name === a.name) || (!!e.pat && e.k !== 'plot' && e.pat === a.pat);
+  });
+}
+
+function describeEvents(events) {
+  const ev = postEvents(events);
+  if (!ev.length) return '아무 반응이 없어요';
+  const e = ev[0];
+  if (e.k === 'icon') return 'LED 그림 ' + e.name + '이(가) 나와요';
+  if (e.k === 'arrow') return '화살표 ' + e.name + '이(가) 나와요';
+  if (e.k === 'str' || e.k === 'num') return '글자 “' + e.text + '”가 나와요';
+  if (e.k === 'tone') return Math.round(e.f) + 'Hz 소리가 나와요';
+  if (e.k === 'clear') return 'LED가 꺼져요';
+  if (e.k === 'leds' || e.k === 'plot') return '다른 LED 모양이 나와요';
+  return '다른 동작을 해요';
+}
+
+function whyNot(res, row) {
+  const e = String(res.err || '');
+  if (e === 'TIMEOUT') return '코드가 끝나지 않아요(무한 반복이 있나요?)';
+  if (e.indexOf('RUN:') === 0) return '코드를 실행하다 오류가 났어요 (' + e.slice(4).trim() + ')';
+  return '지금은 ' + describeEvents(res.events);
+}
+
+/* 연결표의 신호마다 코드를 실제로 실행해 보고, 기대한 동작이 나오는지 확인한다.
+   runFn(code, sig) → Promise<{events, err}> 는 화면(Worker) 또는 테스트에서 넘겨 준다. */
+async function evalCode(code, rows, runFn) {
+  const recv = receiverOK(code);
+  if (!String(code || '').trim() || !rows.length) return { mode: 'none', ok: false, recv, rows: [] };
+  const out = [];
+  for (const r of rows) {
+    let res;
+    try { res = await runFn(code, r.sig); } catch (e) { res = { events: [], err: 'WORKER: ' + e }; }
+    if (/^(SYNTAX|WORKER|NOWORKER)/.test(String(res.err || ''))) {
+      const cc = checkCode(code, rows);
+      return {
+        mode: 'static', ok: cc.ok, recv: cc.hasReceiver,
+        rows: cc.rows.map((x) => Object.assign({}, x, { why: x.ok ? '' : (x.found ? '연결표와 다른 동작이에요' : '이 신호를 확인하는 부분이 없어요') }))
+      };
+    }
+    const ok = !res.err && matchAction(res.events, r.action);
+    out.push(Object.assign({}, r, { ok, why: ok ? '' : whyNot(res, r) }));
+    if (res.err === 'TIMEOUT') {   // 끝나지 않는 코드는 신호마다 기다리지 않고 한 번에 안내
+      rows.slice(out.length).forEach((x) => out.push(Object.assign({}, x, { ok: false, why: whyNot(res, x) })));
+      break;
+    }
+  }
+  return { mode: 'run', ok: out.every((x) => x.ok), recv, rows: out };
+}
+
+function effectiveType(lab, st) { return lab.type === 'any' ? (st.type || 'image') : lab.type; }
+
+const NO_CODE_HINT = 'MakeCode 편집기에서 블록을 만들어 보세요. (편집기가 열리지 않으면 3번의 “직접 붙여 넣기”를 사용해요.)';
+
+function gradeLab(lab, st, run) {
+  const items = [];
+  const rows = mappedRows(st);
+  const code = effectiveCode(st);
+  run = run || { mode: 'none', ok: false, recv: receiverOK(code), rows: [] };
+  const typeOk = lab.type === 'any' || st.modelType === lab.type;
+
+  items.push({
+    id: 'model', required: true, ok: !!st.modelOK && typeOk,
+    label: (lab.type === 'any' ? '' : TYPE_LABEL[lab.type] + ' ') + '모델 불러오기 성공',
+    hint: st.modelOK && !typeOk
+      ? '이 문항은 ' + TYPE_LABEL[lab.type] + ' 모델을 써야 해요. 모델 종류를 확인해 보세요.'
+      : '1번 칸에 모델 링크를 붙여 넣고 [모델 불러오기]를 눌러 보세요.'
+  });
+  const nCls = (st.classes || []).length;
+  items.push({
+    id: 'classes', required: true, ok: !!st.modelOK && nCls >= lab.minClasses,
+    label: '클래스 ' + lab.minClasses + '개 이상',
+    hint: '지금 클래스가 ' + nCls + '개예요. Teachable Machine에서 클래스를 더 만들어 다시 학습시켜 보세요.'
+  });
+  const acts = new Set(rows.map((r) => r.action));
+  items.push({
+    id: 'map', required: true, ok: acts.size >= lab.minActions,
+    label: '서로 다른 동작 ' + lab.minActions + '개 이상 연결',
+    hint: '지금 서로 다른 동작이 ' + acts.size + '개 연결됐어요. 2번 연결표를 채워 보세요.'
+  });
+  if (lab.minGroups > 1) {
+    const kinds = new Set(rows.map((r) => actionKind(r.action)));
+    items.push({
+      id: 'kinds', required: true, ok: kinds.size >= lab.minGroups,
+      label: 'LED와 소리처럼 서로 다른 종류의 동작 함께 쓰기',
+      hint: 'LED 그림·화살표와 소리를 모두 연결해 보세요.'
+    });
+  }
+  const tested = rows.filter((r) => (st.sent && st.sent[r.cls] || 0) > 0).length;
+  items.push({
+    id: 'test', required: true, ok: tested >= lab.minTest,
+    label: '인식 결과를 보내 본 클래스 ' + lab.minTest + '개 이상',
+    hint: '4번에서 카메라/마이크를 켜고 서로 다른 클래스가 인식되게 해 보세요. (지금 ' + tested + '개)'
+  });
+
+  items.push({
+    id: 'recv', required: true, ok: !!run.recv,
+    label: '시리얼통신 수신 블록 사용 (줄 바꿈 문자 전까지)',
+    hint: code.trim() ? receiverHint(code) : NO_CODE_HINT
+  });
+  let codeHint;
+  if (!code.trim()) codeHint = NO_CODE_HINT;
+  else if (!rows.length) codeHint = '2번 연결표를 먼저 채워 주세요.';
+  else codeHint = run.rows.filter((r) => !r.ok).map((r) => '신호 “' + r.sig + '”(' + r.cls + ') → ' + ACT[r.action].label + ': ' + r.why).join(' / ');
+  items.push({
+    id: 'code', required: true, ok: !!run.ok && rows.length > 0,
+    label: '코드를 실행하면 연결표대로 움직임', hint: codeHint || '연결표와 코드를 다시 확인해 보세요.'
+  });
+
+  lab.notes.forEach((n) => {
+    const len = String((st.notes && st.notes[n.id]) || '').trim().length;
+    items.push({
+      id: 'note_' + n.id, required: true, ok: len >= n.min,
+      label: '글쓰기: ' + n.label.replace(/\?.*$/, '?'),
+      hint: '조금 더 자세히 써 주세요. (' + len + '/' + n.min + '자)'
+    });
+  });
+  items.push({
+    id: 'real', required: !!CONFIG.requireRealDevice, ok: (st.real || 0) > 0,
+    label: '진짜 마이크로비트로 신호 보내기' + (CONFIG.requireRealDevice ? '' : ' (권장)'),
+    hint: '[마이크로비트 연결]을 눌러 USB로 연결한 뒤 인식시켜 보세요.'
+  });
+
+  const req = items.filter((i) => i.required);
+  const okN = req.filter((i) => i.ok).length;
+  return { items, pass: okN === req.length, okN, total: req.length, mode: run.mode };
+}
+
+/* ---------- 결과 코드 (학생 → 교사) ---------- */
+function fnv(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(16).padStart(8, '0');
+}
+function b64enc(obj) { return btoa(unescape(encodeURIComponent(JSON.stringify(obj)))); }
+function b64dec(s) { return JSON.parse(decodeURIComponent(escape(atob(s)))); }
+function encodeResult(obj) { const b = b64enc(obj); return 'MBAI1.' + b + '.' + fnv(b + CONFIG.salt); }
+function decodeResult(txt) {
+  const m = /^MBAI1\.([A-Za-z0-9+/=]+)\.([0-9a-f]{8})$/.exec(String(txt || '').trim());
+  if (!m) return { ok: false, msg: '형식이 올바르지 않아요.' };
+  if (fnv(m[1] + CONFIG.salt) !== m[2]) return { ok: false, msg: '내용이 바뀌었거나 설정(salt)이 달라요.' };
+  try { return { ok: true, data: b64dec(m[1]) }; } catch (e) { return { ok: false, msg: '읽을 수 없는 코드예요.' }; }
+}
+
+function buildResult(S) {
+  const labs = {};
+  LABS.forEach((lab) => {
+    const st = S.labs[lab.id];
+    if (!st || !st.sub || !st.sub.n) return;
+    const last = st.sub.last || {};
+    labs[lab.id] = {
+      p: last.pass ? 1 : 0,
+      s: (last.okN || 0) + '/' + (last.total || 0),
+      n: st.sub.n,
+      f: st.sub.first || 0,
+      r: st.real || 0,
+      t: st.modelType || '',
+      u: st.modelUrl || '',
+      c: (st.classes || []).length,
+      m: mappedRows(st).length,
+      a: lab.notes.map((n) => String((st.notes && st.notes[n.id]) || '').trim().slice(0, 400))
+    };
+  });
+  return { v: 1, sid: S.student.sid, name: S.student.name, ts: Date.now(), labs };
+}
+
+function csvCell(v) {
+  const s = String(v == null ? '' : v);
+  return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+const CSV_HEAD = ['학번', '이름', '실습', '완성', '충족/전체', '제출횟수', '완성까지(회)', '실기 전송(회)', '모델 종류', '클래스 수', '연결 동작 수', '글쓰기 1', '글쓰기 2', '모델 링크', '최근 제출'];
+
+function resultsToRows(list) {
+  const rows = [];
+  list.forEach((r) => {
+    Object.keys(r.labs || {}).sort().forEach((id) => {
+      const L = r.labs[id];
+      const lab = LABS.find((x) => String(x.id) === String(id));
+      rows.push([
+        r.sid, r.name, lab ? lab.id + '. ' + lab.title : id, L.p ? '완성' : '미완성', L.s, L.n, L.f || '',
+        L.r, TYPE_LABEL[L.t] || L.t, L.c, L.m, (L.a || [])[0] || '', (L.a || [])[1] || '', L.u,
+        new Date(r.ts).toLocaleString('ko-KR')
+      ]);
+    });
+  });
+  return rows;
+}
+
+function rowsToCSV(rows) {
+  return [CSV_HEAD].concat(rows).map((r) => r.map(csvCell).join(',')).join('\r\n');
+}
+'use strict';
+/* ============================================================
+   가상 마이크로비트: 학생이 MakeCode로 만든 코드(JavaScript)를 실제로 실행해 본다.
+   - 이 함수 하나만으로 동작하도록 만들어서 Worker 안에 그대로 넣어 쓴다(바깥 변수 사용 금지).
+   - 시간은 진짜로 기다리지 않고 가상 시계(T)만 움직인다.
+   - 결과는 '무슨 일이 언제 일어났는지' 사건 목록(events)으로 돌려준다.
+   ============================================================ */
+function simulateMB(src, sig, cfg) {
+  const out = { events: [], err: null, usedReadLine: false, hasReceiver: false, tPost: 0 };
+  const OFF = '.'.repeat(25);
+  const iconPat = (cfg && cfg.iconPat) || {};
+  const arrowPat = (cfg && cfg.arrowPat) || {};
+  let T = 0, phase = 'pre', inH = false, led = OFF.split(''), rx = '';
+  const handlers = [], forevers = [], everies = [];
+  const emit = (e) => { e.t = T; e.ph = phase; e.h = inH; out.events.push(e); };
+
+  /* 모르는 블록은 아무 일도 하지 않는 가짜 객체로 처리 */
+  const gen = () => {
+    const f = function () { return gen(); };
+    return new Proxy(f, {
+      get: (t, k) => (k === Symbol.toPrimitive ? () => 0 : k === 'then' ? undefined : gen()),
+      apply: () => gen()
+    });
+  };
+  const loose = (o) => new Proxy(o, { get: (t, k) => (k in t ? t[k] : typeof k === 'string' ? gen() : undefined) });
+  const names = () => new Proxy({}, { get: (t, k) => (typeof k === 'string' ? k : undefined) });
+
+  const NOTE = { C: 262, CSharp: 277, D: 294, Eb: 311, E: 330, F: 349, FSharp: 370, G: 392, GSharp: 415, A: 440, Bb: 466, B: 494,
+    C3: 131, CSharp3: 139, D3: 147, Eb3: 156, E3: 165, F3: 175, FSharp3: 185, G3: 196, GSharp3: 208, A3: 220, Bb3: 233, B3: 247,
+    C4: 262, CSharp4: 277, D4: 294, Eb4: 311, E4: 330, F4: 349, FSharp4: 370, G4: 392, GSharp4: 415, A4: 440, Bb4: 466, B4: 494,
+    C5: 523, CSharp5: 555, D5: 587, Eb5: 622, E5: 659, F5: 698, FSharp5: 740, G5: 784, GSharp5: 831, A5: 880, Bb5: 932, B5: 988 };
+  const BEAT = { Whole: 500, Half: 250, Quarter: 125, Eighth: 62, Sixteenth: 31, Double: 1000, Breve: 2000 };
+  const DELIM = { NewLine: '\n', Comma: ',', Dollar: '$', Colon: ':', Fullstop: '.', Hash: '#' };
+  const ms = (v, d) => (v === undefined ? d : (+v || 0));
+  const at = (x, y) => (x >= 0 && x < 5 && y >= 0 && y < 5 ? Math.floor(y) * 5 + Math.floor(x) : -1);
+
+  const api = {
+    basic: loose({
+      showIcon: (icon, iv) => { const name = String(icon), p = iconPat[name] || null; if (p) led = p.split(''); emit({ k: 'icon', name, pat: p }); T += ms(iv, 600); },
+      showArrow: (arrow, iv) => { const name = String(arrow), p = arrowPat[name] || null; if (p) led = p.split(''); emit({ k: 'arrow', name, pat: p }); T += ms(iv, 600); },
+      showLeds: (pattern, iv) => { const p = String(pattern).replace(/[^#.]/g, ''); if (p.length >= 25) { led = p.slice(0, 25).split(''); emit({ k: 'leds', pat: p.slice(0, 25) }); } T += ms(iv, 400); },
+      showString: (s, iv) => { s = String(s); emit({ k: 'str', text: s }); led = OFF.split(''); T += s.length * 6 * ms(iv, 150); },
+      showNumber: (n, iv) => { const s = String(n); emit({ k: 'num', text: s }); led = OFF.split(''); T += s.length * 6 * ms(iv, 150); },
+      clearScreen: () => { led = OFF.split(''); emit({ k: 'clear', pat: OFF }); },
+      forever: (fn) => { forevers.push(fn); },
+      pause: (v) => { T += ms(v, 0); }
+    }),
+    led: loose({
+      plot: (x, y) => { const i = at(x, y); if (i >= 0) { led[i] = '#'; emit({ k: 'plot', pat: led.join('') }); } },
+      unplot: (x, y) => { const i = at(x, y); if (i >= 0) { led[i] = '.'; emit({ k: 'plot', pat: led.join('') }); } },
+      toggle: (x, y) => { const i = at(x, y); if (i >= 0) { led[i] = led[i] === '#' ? '.' : '#'; emit({ k: 'plot', pat: led.join('') }); } },
+      point: (x, y) => { const i = at(x, y); return i >= 0 && led[i] === '#'; },
+      plotBrightness: (x, y, b) => { const i = at(x, y); if (i >= 0) { led[i] = +b > 0 ? '#' : '.'; emit({ k: 'plot', pat: led.join('') }); } }
+    }),
+    music: loose({
+      beat: (f) => (BEAT[String(f)] !== undefined ? BEAT[String(f)] : 500),
+      playTone: (f, d) => { emit({ k: 'tone', f: +f, ms: ms(d, 0) }); T += ms(d, 0); },
+      ringTone: (f) => { emit({ k: 'tone', f: +f, ms: 0 }); },
+      rest: (d) => { T += ms(d, 0); },
+      tonePlayable: (f, d) => ({ f: +f, ms: ms(d, 0) }),
+      play: (p) => { if (p && typeof p.f === 'number') { emit({ k: 'tone', f: p.f, ms: p.ms }); T += p.ms || 0; } },
+      playMelody: (m) => { emit({ k: 'melody', text: String(m) }); },
+      tempo: () => 120
+    }),
+    serial: loose({
+      delimiters: (d) => (DELIM[d] !== undefined ? DELIM[d] : String(d)),
+      onDataReceived: (d, fn) => { out.hasReceiver = true; handlers.push({ d: String(d), fn }); },
+      readUntil: (d) => {
+        d = String(d); const i = rx.indexOf(d);
+        if (i < 0) return '';
+        const s = rx.slice(0, i); rx = rx.slice(i + d.length); return s;
+      },
+      /* 실제 마이크로비트에서 이 블록은 제대로 동작하지 않는다는 수업 현장 확인 결과를 따른다 */
+      readLine: () => { out.usedReadLine = true; return ''; },
+      readString: () => { const s = rx; rx = ''; return s; },
+      writeLine: (s) => { emit({ k: 'serial', text: String(s) }); },
+      writeString: (s) => { emit({ k: 'serial', text: String(s) }); },
+      writeValue: (n, v) => { emit({ k: 'serial', text: String(n) + ':' + String(v) }); }
+    }),
+    control: loose({
+      inBackground: (fn) => { fn(); },
+      runInParallel: (fn) => { fn(); },
+      waitMicros: (us) => { T += ms(us, 0) / 1000; },
+      millis: () => T
+    }),
+    loops: loose({ everyInterval: (v, fn) => { everies.push(fn); } }),
+    input: gen(), pins: gen(), radio: gen(), bluetooth: gen(), game: gen(), images: gen(),
+    Delimiters: names(), IconNames: names(), ArrowNames: names(), BeatFraction: names(),
+    Button: names(), Gesture: names(), Dimension: names(), Direction: names(), Rotation: names(),
+    Note: new Proxy(NOTE, { get: (t, k) => (k in t ? t[k] : 0) })
+  };
+
+  /* 블록이 만든 TypeScript 를 JavaScript 로 (타입 표시만 지운다) */
+  const stripTS = (s) => s
+    .replace(/\b(let|const|var)\s+([A-Za-z_$][\w$]*)\s*:\s*[^=;\n]+/g, '$1 $2')
+    .replace(/\bfunction\s*([A-Za-z_$][\w$]*)?\s*\(([^()]*)\)\s*(?::\s*[A-Za-z_$][\w$<>\[\]|. ]*)?\s*\{/g,
+      (m, n, p) => 'function ' + (n || '') + '(' + p.replace(/\s*\?\s*:/g, ':').replace(/\s*:\s*[A-Za-z_$][\w$<>\[\]|. ]*/g, '') + ') {')
+    .replace(/\s+as\s+[A-Za-z_$][\w$<>\[\]|.]*/g, '');
+  if (/\b(enum|namespace|interface|class|import|export)\b/.test(src)) { out.err = 'SYNTAX: unsupported'; return out; }
+  const js = stripTS(String(src));
+
+  const KW = new Set(['this', 'super', 'null', 'true', 'false', 'undefined', 'arguments', 'eval', 'new', 'typeof', 'instanceof', 'in', 'of',
+    'return', 'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'break', 'continue', 'var', 'let', 'const', 'function', 'class', 'delete',
+    'void', 'throw', 'try', 'catch', 'finally', 'yield', 'await', 'async', 'import', 'export', 'default', 'with', 'debugger', 'enum',
+    'static', 'interface', 'package', 'private', 'protected', 'public', 'implements']);
+  const declared = new Set();
+  let m;
+  const dre = /\b(?:let|const|var|function)\s+([A-Za-z_$][\w$]*)/g;
+  while ((m = dre.exec(js))) declared.add(m[1]);
+  const extra = {};
+  const rre = /(?:^|[^\w$.])([A-Za-z_$][\w$]*)\s*\./g;
+  while ((m = rre.exec(js))) {
+    const n = m[1];
+    if (!(n in api) && !declared.has(n) && !(n in globalThis) && !KW.has(n)) extra[n] = gen();
+  }
+  const pnames = Object.keys(api).filter((n) => !declared.has(n)).concat(Object.keys(extra).filter((n) => !declared.has(n)));
+  let fn;
+  try { fn = new Function(...pnames, '"use strict";\n' + js); } catch (e) { out.err = 'SYNTAX: ' + (e && e.message); return out; }
+
+  try { fn(...pnames.map((n) => (n in api ? api[n] : extra[n]))); } catch (e) { out.err = 'RUN: ' + (e && e.message || e); return out; }
+  const tick = (n) => { for (let i = 0; i < n; i++) { forevers.forEach((f) => f()); everies.forEach((f) => f()); T += 20; } };
+  try {
+    tick(2);                       // 신호가 오기 전의 모습(기준)
+    out.tPost = T; phase = 'post';
+    rx += String(sig) + '\n';      // 신호가 USB로 들어옴
+    handlers.forEach((h) => {
+      let g = 0;
+      while (g++ < 5 && h.d && rx.indexOf(h.d) >= 0) { const before = rx; inH = true; try { h.fn(); } finally { inH = false; } if (rx === before) break; }
+    });
+    tick(3);
+  } catch (e) { out.err = 'RUN: ' + (e && e.message || e); }
+  return out;
+}
+
+/* 화면에서 Worker 로 실행할 때 쓰는 소스 */
+const WORKER_SRC = '"use strict";\ntry{self.fetch=undefined;self.XMLHttpRequest=undefined;self.WebSocket=undefined;}catch(_){}\n' +
+  'const simulateMB=' + simulateMB.toString() + ';\n' +
+  'self.onmessage=function(e){var r;try{r=simulateMB(e.data.src,e.data.sig,e.data.cfg);}catch(x){r={events:[],err:"RUN: "+(x&&x.message||x)};}self.postMessage(r);};';
+'use strict';
+/* ============================================================
+   화면 · MakeCode 편집기 연결 · 모델 실행 · 마이크로비트 연결
+   ============================================================ */
+const KEY = 'mbai.v1';
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* ---------- 저장 상태 ---------- */
+function blankLab() {
+  return { type: 'image', url: '', modelOK: false, modelType: '', modelUrl: '', classes: [], map: {}, sent: {}, real: 0, notes: {}, code: '', paste: '', project: null, sub: { n: 0, first: 0, last: null } };
+}
+function loadState() {
+  try {
+    const j = JSON.parse(localStorage.getItem(KEY));
+    if (j && j.labs && j.student) return j;
+  } catch (e) { /* 저장된 값 없음 */ }
+  return { student: { sid: '', name: '' }, cur: 1, labs: {} };
+}
+let S = loadState();
+function L(id) { if (!S.labs[id]) S.labs[id] = blankLab(); return S.labs[id]; }
+function curLab() { return LABS.find((l) => l.id === S.cur) || LABS[0]; }
+let saveTimer;
+function save() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* 저장 불가 */ } }, 120);
+}
+
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+function copyText(text) {
+  const done = () => toast('복사했어요.');
+  if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text, done)); } else fallbackCopy(text, done);
+}
+function fallbackCopy(text, done) {
+  const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); done(); } catch (e) { toast('복사하지 못했어요. 직접 선택해서 복사해 주세요.'); }
+  ta.remove();
+}
+function setMsg(sel, kind, text) {
+  const el = $(sel); if (!el) return;
+  el.className = 'msg' + (kind ? ' ' + kind : ''); el.textContent = text; el.style.display = text ? '' : 'none';
+}
+
+/* ---------- 상단 · 현황 ---------- */
+function buildLogo() {
+  const smile = P('.....|.#.#.|.....|#...#|.###.').join('');
+  $('#logoLeds').innerHTML = smile.split('').map((c) => '<i class="' + (c === '#' ? 'on' : '') + '"></i>').join('');
+}
+function renderDash() {
+  let done = 0, subs = 0;
+  LABS.forEach((lab) => {
+    const st = S.labs[lab.id]; if (!st) return;
+    subs += st.sub.n;
+    if (st.sub.last && st.sub.last.pass) done++;
+  });
+  const pct = Math.round((done / LABS.length) * 100);
+  $('#stAll').textContent = LABS.length; $('#stDone').textContent = done; $('#stSub').textContent = subs;
+  $('#pct').textContent = pct + '%'; $('#pfill').style.width = pct + '%'; $('#pbar').setAttribute('aria-valuenow', pct);
+}
+function renderTabs() {
+  $('#tabs').innerHTML = LABS.map((lab) => {
+    const st = S.labs[lab.id];
+    const done = st && st.sub.last && st.sub.last.pass;
+    const work = st && !done && (st.sub.n > 0 || st.modelOK);
+    return '<button type="button" role="tab" class="tab" data-id="' + lab.id + '" aria-selected="' + (lab.id === S.cur) + '">' +
+      '<span class="t1"><span>실습 ' + lab.id + ' · ' + lab.level + '</span><span class="badge ' + (done ? 'done' : work ? 'work' : '') + '">' + (done ? '완성' : work ? '진행 중' : '시작 전') + '</span></span>' +
+      '<span class="t2">' + lab.emoji + ' ' + esc(lab.title) + '</span><span class="t3">' + esc(lab.sub) + '</span></button>';
+  }).join('');
+}
+
+/* ---------- 실습 화면 ---------- */
+const ACT_OPTS = '<option value="">사용 안 함</option>' + (() => {
+  const g = {}; ACTIONS.forEach((a) => { (g[a.group] = g[a.group] || []).push(a); });
+  return Object.keys(g).map((k) => '<optgroup label="' + k + '">' + g[k].map((a) => '<option value="' + a.id + '">' + a.label + '</option>').join('') + '</optgroup>').join('');
+})();
+const CAM_EMPTY = '카메라(마이크)를 켜면 여기에 나와요.';
+
+function labHTML(lab, st) {
+  const steps = lab.steps.map((s) => '<li>' + s.replace(/\{(\w+)\}/g, (m, k) => TM_LINKS[k] || '#') + '</li>').join('');
+  const typeBox = lab.type === 'any'
+    ? '<div class="seg" id="typeSeg" role="radiogroup" aria-label="모델 종류">' + ['image', 'pose', 'audio'].map((t) =>
+      '<label><input type="radio" name="mtype" value="' + t + '"' + (st.type === t ? ' checked' : '') + '><span>' + TYPE_LABEL[t] + ' 모델</span></label>').join('') + '</div>'
+    : '<p class="small">이 실습은 <b>' + TYPE_LABEL[lab.type] + ' 모델</b>을 사용해요.</p>';
+  const type = effectiveType(lab, st);
+  const tmLink = TM_LINKS[type];
+  const notes = lab.notes.map((n) =>
+    '<div class="note"><label for="note_' + n.id + '">' + esc(n.label) + '</label><p class="small">' + esc(n.hint) + '</p>' +
+    '<textarea id="note_' + n.id + '" rows="3" data-note="' + n.id + '">' + esc((st.notes && st.notes[n.id]) || '') + '</textarea>' +
+    '<div class="counter" id="cnt_' + n.id + '"></div></div>').join('');
+  const ex = CONFIG.showExampleCode
+    ? '<details class="ex"><summary>막히면 예시 코드 보기</summary><p class="small" style="margin-top:6px">2번 연결표대로 만든 예시예요. 먼저 블록으로 직접 만들어 보고, 비교할 때 열어 보세요. 편집기 위쪽의 JavaScript 탭에 붙여 넣어 볼 수도 있어요.</p>' +
+      '<pre class="code" id="exCode"></pre><button type="button" class="btn sm ghost" id="btnCopyEx" style="color:var(--ink)">예시 코드 복사</button></details>'
+    : '';
+
+  return '' +
+    '<div class="lab-head">' +
+      '<div class="card"><span class="lvl">실습 ' + lab.id + ' · ' + lab.level + '</span><h2>' + lab.emoji + ' ' + esc(lab.title) + '</h2><p class="mission">' + esc(lab.mission) + '</p>' +
+      '<h3 style="font-size:.95rem;margin-top:14px">해결 순서</h3><ol class="steps">' + steps + '</ol></div>' +
+      '<div class="card"><dl class="std"><div><dt>성취기준</dt><dd>' + esc(lab.standard) + '</dd></div><div><dt>성취 기대</dt><dd>' + esc(lab.expect) + '</dd></div>' +
+      '<div><dt>완성 조건</dt><dd>클래스 ' + lab.minClasses + '개 이상 · 서로 다른 동작 ' + lab.minActions + '개 이상 · 인식해서 보내 본 클래스 ' + lab.minTest + '개 이상 · 코드를 실행하면 연결표대로 움직임 · 글쓰기</dd></div></dl></div>' +
+    '</div>' +
+    '<div class="stack">' +
+    '<div class="pair">' +
+      '<article class="card"><h3><span class="n">1</span>모델 불러오기</h3>' +
+        '<p class="lead"><a href="' + tmLink + '" target="_blank" rel="noopener">Teachable Machine</a>에서 학습시킨 뒤 [모델 내보내기 → 모델 업로드]의 <b>공유 링크</b>를 붙여 넣어요.</p>' + typeBox +
+        '<label class="small" for="mUrl" style="font-weight:700">모델 링크</label>' +
+        '<div class="row" style="flex-wrap:nowrap"><input type="text" id="mUrl" placeholder="https://teachablemachine.withgoogle.com/models/…" value="' + esc(st.url) + '" autocomplete="off"><button type="button" class="btn" id="btnLoad" style="white-space:nowrap">모델 불러오기</button></div>' +
+        '<div class="msg" id="mStatus" style="display:none"></div></article>' +
+      '<article class="card"><h3><span class="n">2</span>연결표 만들기</h3><p class="lead">클래스(인공지능의 대답)마다 마이크로비트가 할 일을 골라요. 신호 글자를 누르면 고른 동작을 미리 볼 수 있어요.</p><div id="mapBox"></div></article>' +
+    '</div>' +
+    '<article class="card" id="mcCard">' +
+      '<div class="mc-head"><h3><span class="n">3</span>MakeCode로 코딩하기</h3>' +
+        '<div class="mc-tools"><span class="mc-stat" id="mcStat"></span><button type="button" class="btn sm ghost" id="btnMcReload" style="color:var(--ink)">편집기 새로고침</button><button type="button" class="btn sm ghost" id="btnMcFull" style="color:var(--ink)">편집기 크게 보기</button></div></div>' +
+      '<p class="lead">아래 편집기에서 블록을 쌓아요. <b>시리얼통신 수신 데이터가 들어왔을 때</b>(줄 바꿈 문자 기준) 블록 안에서 <b>시리얼통신 수신: 줄 바꿈 문자 전까지</b>로 신호를 읽고, 신호(A, B, C…)마다 2번 표의 동작을 하게 만들어요. 코드는 <b>자동으로 저장</b>되고, 제출할 때 그대로 채점돼요.</p>' +
+      '<div class="mcbox" id="mcBox"></div>' +
+      '<div class="mc-after">' + ex +
+        '<details class="ex" id="codeView"><summary>내 코드 보기 (채점에 쓰이는 JavaScript)</summary><pre class="code" id="codePre"></pre></details>' +
+        '<details class="ex" id="pasteBox"><summary>편집기가 안 열릴 때만: 코드 직접 붙여 넣기</summary>' +
+          '<p class="small" style="margin-top:6px">편집기가 열리지 않거나 코드가 읽히지 않을 때 MakeCode의 <b>JavaScript</b> 탭 코드를 복사해 붙여 넣어요. <b>이 칸에 내용이 있으면 이 코드로 채점해요.</b></p>' +
+          '<textarea id="codeIn" class="codebox" spellcheck="false" placeholder="여기에 JavaScript 코드를 붙여 넣어요.">' + esc(st.paste || '') + '</textarea></details>' +
+        '<div class="row" style="margin-top:6px"><button type="button" class="btn sm ghost" id="btnCodeCheck" style="color:var(--ink)">내 코드 먼저 검사해 보기</button></div>' +
+        '<div class="msg" id="codeMsg" style="display:none"></div></div>' +
+    '</article>' +
+    '<article class="card"><h3><span class="n">4</span>AI로 실행해 보기</h3>' +
+      '<p class="lead">카메라(마이크)로 인식시키면 인공지능이 신호(A, B, C…)를 보내고, <b>내가 만든 코드</b>가 가상 마이크로비트에서 실행돼요. (3번 편집기 안의 작은 시뮬레이터는 MakeCode가 만든 것이고, 인공지능 신호로 움직이는 곳은 여기예요.)</p>' +
+      '<div class="labgrid"><div>' +
+        '<div class="cam" id="cam">' + CAM_EMPTY + '</div>' +
+        '<div class="row" style="margin-top:10px"><button type="button" class="btn sm" id="btnRun">' + (type === 'audio' ? '마이크 켜기' : '카메라 켜기') + '</button><button type="button" class="btn sm ghost" id="btnStop" style="color:var(--ink)" disabled>멈추기</button></div>' +
+        '<div class="bars" id="bars"></div><p class="small" id="sentInfo" style="margin-top:10px"></p>' +
+      '</div><div>' +
+        '<div class="board"><div class="ab"><span>가상 마이크로비트 (내 코드 실행 결과)</span><span id="serState"><span class="dot"></span>연결 안 됨</span></div>' +
+          '<div class="leds" id="leds">' + '<i></i>'.repeat(25) + '</div><div class="cap" id="cap">신호를 받으면 내 코드가 실행돼요.</div></div>' +
+        '<h4 style="margin-top:14px">신호 직접 보내기 (코드 확인용)</h4><div class="tests" id="tests"></div>' +
+        '<h4 style="margin-top:14px">진짜 마이크로비트 연결</h4>' +
+        '<p class="small" style="margin:0 0 8px">1) 3번 편집기에서 코드를 마이크로비트에 저장하고 USB로 연결 2) MakeCode의 USB 연결은 끊기 3) 아래 버튼</p>' +
+        '<button type="button" class="btn sm" id="btnSerial">마이크로비트 연결</button>' +
+        '<div class="small" id="serHelp" style="margin-top:8px"></div>' +
+      '</div></div></article>' +
+    '<article class="card"><h3><span class="n">5</span>생각 쓰기</h3>' + notes + '</article>' +
+    '<article class="card"><h3><span class="n">6</span>제출하고 자동 채점</h3>' +
+      '<p class="lead">제출하면 연결표의 신호마다 내 코드를 실제로 실행해서 확인해요. 조건을 모두 채울 때까지 여러 번 제출할 수 있고, 제출할 때마다 횟수가 쌓여요.</p>' +
+      '<button type="button" class="btn led" id="btnSubmit">제출하고 자동 채점</button>' +
+      '<div id="resultBox"></div><div id="myCodeBox"></div></article>' +
+    '</div>';
+}
+
+function renderLab() {
+  stopRuntime(); clearPlay(); rt = freshRT(); mc.frame = null;
+  const lab = curLab(), st = L(lab.id);
+  $('#labView').innerHTML = labHTML(lab, st);
+  bindLab(lab, st);
+  renderModelStatus(); renderMap(); buildBars(); renderEx(); renderTests(); renderSentInfo(); renderSerial(); renderResult(null);
+  lab.notes.forEach((n) => updateCounter(n));
+  drawLedPat(ALL_OFF);
+  mcMount();
+}
+
+function bindLab(lab, st) {
+  $('#mUrl').addEventListener('input', (e) => { st.url = e.target.value; save(); });
+  $('#btnLoad').addEventListener('click', onLoadClick);
+  $('#mUrl').addEventListener('keydown', (e) => { if (e.key === 'Enter') onLoadClick(); });
+  $('#codeIn').addEventListener('input', (e) => { st.paste = e.target.value; save(); renderCodePre(); });
+  $('#btnCodeCheck').addEventListener('click', onCodeCheck);
+  $('#btnMcFull').addEventListener('click', toggleMcFull);
+  $('#btnMcReload').addEventListener('click', mcMount);
+  $$('[data-note]').forEach((ta) => ta.addEventListener('input', () => {
+    st.notes[ta.dataset.note] = ta.value; save(); updateCounter(lab.notes.find((n) => n.id === ta.dataset.note));
+  }));
+  $('#btnSubmit').addEventListener('click', onSubmit);
+  $('#btnRun').addEventListener('click', runStart);
+  $('#btnStop').addEventListener('click', () => stopRuntime());
+  $('#btnSerial').addEventListener('click', onSerialClick);
+  const cp = $('#btnCopyEx'); if (cp) cp.addEventListener('click', () => copyText(genCode(mappedRows(st))));
+  $$('#typeSeg input').forEach((r) => r.addEventListener('change', () => {
+    if (st.type === r.value) return;
+    st.type = r.value;
+    st.modelOK = false; st.modelType = ''; st.modelUrl = ''; st.classes = []; st.map = {}; st.sent = {}; st.real = 0;
+    save(); renderLab(); renderTabs();
+  }));
+  $('#tests').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-i]'); if (!b) return;
+    const row = mappedRows(st)[+b.dataset.i]; if (!row) return;
+    runAndShow(row.sig, row.cls);
+    if (ser.ok) serSend(row.sig); else toast('가상 마이크로비트에서만 실행했어요. 진짜 마이크로비트를 연결하면 신호가 전달돼요.');
+  });
+}
+
+function updateCounter(n) {
+  const st = L(S.cur), len = String((st.notes && st.notes[n.id]) || '').trim().length, el = $('#cnt_' + n.id);
+  if (!el) return;
+  el.textContent = len + ' / 최소 ' + n.min + '자'; el.classList.toggle('good', len >= n.min);
+}
+
+function renderModelStatus() {
+  const st = L(S.cur);
+  if (st.modelOK) setMsg('#mStatus', 'ok', '✔ ' + TYPE_LABEL[st.modelType] + ' 모델을 불러왔어요. 클래스 ' + st.classes.length + '개: ' + st.classes.join(', '));
+}
+
+function renderMap() {
+  const st = L(S.cur), box = $('#mapBox');
+  if (!st.classes.length) { box.innerHTML = '<div class="empty">1번에서 모델을 불러오면 클래스 목록이 여기에 나와요.</div>'; return; }
+  box.innerHTML = '<table class="map"><thead><tr><th>클래스</th><th>신호</th><th>마이크로비트 동작</th></tr></thead><tbody>' +
+    st.classes.map((c, i) => '<tr><td>' + esc(c) + '</td><td><button type="button" class="sig" data-prev="' + i + '" title="고른 동작 미리보기">' + signalFor(i) + '</button></td>' +
+      '<td><select data-i="' + i + '" aria-label="' + esc(c) + ' 동작">' + ACT_OPTS + '</select></td></tr>').join('') + '</tbody></table>';
+  $$('select[data-i]', box).forEach((sel) => {
+    sel.value = st.map[st.classes[+sel.dataset.i]] || '';
+    sel.addEventListener('change', () => {
+      const c = st.classes[+sel.dataset.i];
+      if (sel.value) st.map[c] = sel.value; else delete st.map[c];
+      save(); renderEx(); renderTests(); markBars();
+    });
+  });
+  $$('button[data-prev]', box).forEach((b) => b.addEventListener('click', () => {
+    const i = +b.dataset.prev, c = st.classes[i], a = st.map[c];
+    if (!a) { toast('먼저 오른쪽에서 동작을 골라 주세요.'); return; }
+    clearPlay(); showAction(a, signalFor(i), c, true);
+  }));
+}
+function renderEx() { const el = $('#exCode'); if (el) el.textContent = genCode(mappedRows(L(S.cur))); }
+function renderTests() {
+  const st = L(S.cur);
+  const rows = mappedRows(st);
+  $('#tests').innerHTML = rows.length ? rows.map((r, i) => '<button type="button" class="btn sm ghost" style="color:var(--ink)" data-i="' + i + '">' + r.sig + ' · ' + esc(ACT[r.action].label) + '</button>').join('') : '<span class="small">연결표를 채우면 버튼이 생겨요.</span>';
+}
+function renderSentInfo() {
+  const st = L(S.cur), lab = curLab(), rows = mappedRows(st);
+  const n = rows.filter((r) => (st.sent[r.cls] || 0) > 0).length;
+  $('#sentInfo').innerHTML = '인공지능이 직접 신호를 보낸 클래스 <b>' + n + '개</b> (' + lab.minTest + '개 이상 필요)' + (n >= lab.minTest ? ' ✔' : '') + '<br>진짜 마이크로비트로 보낸 횟수 <b>' + (st.real || 0) + '</b>회';
+}
+
+/* ---------- 막대 그래프 ---------- */
+function buildBars() {
+  const st = L(S.cur), box = $('#bars');
+  box.innerHTML = st.classes.map((c, i) =>
+    '<div class="bar' + (st.map[c] ? '' : ' un') + '" data-i="' + i + '"><span class="bn" title="' + esc(c) + '">' + esc(c) + '<i>' + signalFor(i) + '</i></span><div class="track"><div class="fill"></div></div><span class="pc">0%</span></div>').join('');
+}
+function markBars() { const st = L(S.cur); $$('#bars .bar').forEach((b, i) => b.classList.toggle('un', !st.map[st.classes[i]])); }
+function updateBars(probs) {
+  let top = 0; probs.forEach((p, i) => { if (p > probs[top]) top = i; });
+  $$('#bars .bar').forEach((b, i) => {
+    const p = probs[i] || 0;
+    $('.fill', b).style.width = (p * 100).toFixed(0) + '%'; $('.pc', b).textContent = (p * 100).toFixed(0) + '%';
+    b.classList.toggle('hi', i === top && probs[top] >= CONFIG.confidence);
+  });
+}
+
+/* ---------- 가상 마이크로비트 화면 ---------- */
+function drawLedPat(pat) { $$('#leds i').forEach((el, k) => el.classList.toggle('on', pat[k] === '#')); }
+let actx;
+function beep(f) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = 'square'; o.frequency.value = f; g.gain.value = 0.06; o.connect(g); g.connect(actx.destination);
+    o.start(); o.stop(actx.currentTime + 0.35);
+  } catch (e) { /* 소리 미지원 */ }
+}
+/* 연결표에서 고른 동작 '미리보기' (내 코드가 아니라 기대하는 모습) */
+function showAction(id, sig, label, withSound) {
+  const a = ACT[id]; drawLedPat(a.pat);
+  $('#cap').textContent = '미리보기 · 신호 ' + sig + ' (' + label + ') → ' + a.label;
+  if (a.freq && withSound) beep(a.freq);
+}
+
+/* ---------- 내 코드 실행 (Worker) ---------- */
+const SIM_CFG = { iconPat: ICON_PAT, arrowPat: ARROW_PAT };
+let workerUrl = '';
+function getWorkerUrl() {
+  if (!workerUrl) workerUrl = URL.createObjectURL(new Blob([WORKER_SRC], { type: 'text/javascript' }));
+  return workerUrl;
+}
+function runCode(src, sig) {
+  return new Promise((resolve) => {
+    let w;
+    try { w = new Worker(getWorkerUrl()); } catch (e) { resolve({ events: [], err: 'NOWORKER: ' + (e && e.message) }); return; }
+    const to = setTimeout(() => { w.terminate(); resolve({ events: [], err: 'TIMEOUT' }); }, 1500);
+    w.onmessage = (e) => { clearTimeout(to); w.terminate(); resolve(e.data); };
+    w.onerror = (e) => { clearTimeout(to); w.terminate(); resolve({ events: [], err: 'WORKER: ' + (e && e.message || '') }); };
+    w.postMessage({ src, sig, cfg: SIM_CFG });
+  });
+}
+
+let playTimers = [], runSeq = 0;
+function clearPlay() { playTimers.forEach(clearTimeout); playTimers = []; runSeq++; }
+function errText(err) {
+  const e = String(err);
+  if (e === 'TIMEOUT') return '내 코드가 끝나지 않아요. 무한 반복이 있는지 확인해 보세요.';
+  if (e.indexOf('SYNTAX') === 0) return '내 코드를 읽을 수 없어요. 블록으로 만든 코드인지 확인해 보세요.';
+  if (e.indexOf('RUN:') === 0) return '내 코드를 실행하다 오류가 났어요 (' + e.slice(4).trim() + ')';
+  return '이 브라우저에서는 코드를 실행해 볼 수 없어요.';
+}
+function applyEvent(e, sig, label) {
+  const cap = $('#cap'); if (!cap) return;
+  const head = '신호 ' + sig + ' (' + label + ') → ';
+  if (e.k === 'tone') { cap.textContent = head + '소리 ' + Math.round(e.f) + 'Hz'; beep(e.f); return; }
+  if (e.k === 'str' || e.k === 'num') { drawLedPat(ALL_OFF); cap.textContent = head + '글자 “' + e.text + '” 출력'; return; }
+  if (e.k === 'serial' || e.k === 'melody') return;
+  if (e.pat) {
+    drawLedPat(e.pat);
+    cap.textContent = head + (e.k === 'icon' ? 'LED 그림 ' + e.name : e.k === 'arrow' ? '화살표 ' + e.name : e.k === 'clear' ? 'LED 끄기' : 'LED 표시');
+  } else { drawLedPat(ALL_OFF); cap.textContent = head + (e.name ? 'LED 그림 ' + e.name : 'LED 표시'); }
+}
+async function runAndShow(sig, label) {
+  const st = L(S.cur), code = effectiveCode(st);
+  clearPlay();
+  const my = runSeq;
+  if (!code.trim()) { $('#cap').textContent = '아직 MakeCode 코드가 없어요. 3번에서 블록을 만들어 보세요.'; drawLedPat(ALL_OFF); return; }
+  const res = await runCode(code, sig);
+  if (my !== runSeq || !$('#cap')) return;
+  if (res.err) { drawLedPat(ALL_OFF); $('#cap').textContent = errText(res.err); return; }
+  const ev = postEvents(res.events);
+  if (!ev.length) { drawLedPat(ALL_OFF); $('#cap').textContent = '신호 ' + sig + ' (' + label + ') → 내 코드는 아무 반응이 없어요'; return; }
+  ev.forEach((e) => {
+    const delay = Math.max(0, (e.t || 0) - (res.tPost || 0));
+    if (delay > 6000) return;
+    playTimers.push(setTimeout(() => applyEvent(e, sig, label), delay));
+  });
+}
+
+/* ---------- MakeCode 편집기 연결 ---------- */
+const mc = { frame: null, ready: false, contact: false, failed: false, lastSave: 0, waiters: [], timer: 0, full: false };
+
+function renderCodePre() {
+  const el = $('#codePre'); if (!el) return;
+  const code = effectiveCode(L(S.cur));
+  el.textContent = code.trim() ? code : '(아직 코드가 없어요)';
+}
+function mcStatus() {
+  const el = $('#mcStat'); if (!el) return;
+  const st = L(S.cur);
+  let html;
+  if (mc.failed) html = '<span class="dot"></span>' + (mc.contact ? '편집기가 아직 준비되지 않았어요 · ‘편집기 새로고침’을 누르거나 아래 ‘직접 붙여 넣기’를 써 보세요' : '편집기가 열리지 않았어요 · ‘편집기 새로고침’을 누르거나 아래 ‘직접 붙여 넣기’를 써 보세요');
+  else if (!mc.ready) html = '<span class="dot"></span>MakeCode 불러오는 중…';
+  else if (!mc.lastSave) html = '<span class="dot on"></span>편집기 연결됨 · 블록을 만들면 자동으로 저장돼요';
+  else {
+    const t = new Date(mc.lastSave), p = (n) => String(n).padStart(2, '0');
+    const lines = String(st.code || '').trim() ? String(st.code).split('\n').length : 0;
+    html = '<span class="dot on"></span>자동 저장됨 ' + p(t.getHours()) + ':' + p(t.getMinutes()) + ':' + p(t.getSeconds()) + ' · 코드 ' + lines + '줄';
+  }
+  el.innerHTML = html;
+  renderCodePre();
+}
+function mcMount() {
+  clearTimeout(mc.timer); mc.ready = false; mc.contact = false; mc.failed = false; mc.lastSave = 0; mc.waiters = []; mc.full = false;
+  document.body.style.overflow = '';
+  const card = $('#mcCard'); if (card) card.classList.remove('mcfull');
+  const fb = $('#btnMcFull'); if (fb) fb.textContent = '편집기 크게 보기';
+  const box = $('#mcBox'); if (!box) return;
+  box.innerHTML = '';
+  const f = document.createElement('iframe');
+  f.id = 'mcFrame'; f.title = 'MakeCode 편집기'; f.src = CONFIG.mcUrl;
+  f.setAttribute('allow', 'usb; autoplay');
+  box.appendChild(f); mc.frame = f;
+  mc.timer = setTimeout(() => {
+    if (mc.ready) return;
+    mc.failed = true; mcStatus();
+    const pb = $('#pasteBox'); if (pb) pb.open = true;
+  }, CONFIG.mcLoadTimeoutMs);
+  mcStatus();
+}
+function mcSaved(project) {
+  const st = L(S.cur);
+  st.project = project; st.code = projectCode(project);
+  mc.lastSave = Date.now(); save();
+  const w = mc.waiters.slice(); mc.waiters = []; w.forEach((f) => f());
+}
+/* 제출·검사 직전에 편집기에게 지금 코드를 저장해 달라고 부탁하고, 잠깐(최대 0.9초) 기다린다 */
+function mcRequestSave() {
+  return new Promise((resolve) => {
+    if (!mc.ready || !mc.frame || !mc.frame.contentWindow) { resolve(); return; }
+    let t;
+    const done = () => { clearTimeout(t); mc.waiters = mc.waiters.filter((f) => f !== done); resolve(); };
+    mc.waiters.push(done);
+    t = setTimeout(done, 900);
+    try { mc.frame.contentWindow.postMessage({ type: 'pxteditor', action: 'saveproject', id: 'save' + Date.now(), response: true }, '*'); } catch (e) { done(); }
+  });
+}
+function onMcMessage(ev) {
+  if (!mc.frame || ev.source !== mc.frame.contentWindow) return;
+  const m = ev.data;
+  if (!m || typeof m !== 'object' || m.type !== 'pxthost') return;
+  mc.contact = true;
+  if (m.action === 'editorcontentloaded' || m.action === 'workspaceloaded' || m.action === 'workspacesave') { mc.ready = true; mc.failed = false; clearTimeout(mc.timer); }
+  const st = L(S.cur);
+  const reply = (extra) => {
+    try { ev.source.postMessage(Object.assign({ type: 'pxthost', id: m.id, success: true }, extra || {}), '*'); } catch (e) { /* 편집기가 닫힘 */ }
+  };
+  if (m.action === 'workspacesync') reply({ projects: st.project ? [st.project] : [] });
+  else if (m.action === 'workspacesave') { if (m.project) mcSaved(m.project); reply(); }
+  else if (m.action === 'workspacereset') { st.project = null; st.code = ''; save(); reply(); }
+  else if (m.action === 'workspaceloaded') reply();
+  mcStatus();
+}
+function toggleMcFull() {
+  const card = $('#mcCard'); if (!card) return;
+  mc.full = !mc.full;
+  card.classList.toggle('mcfull', mc.full);
+  document.body.style.overflow = mc.full ? 'hidden' : '';
+  $('#btnMcFull').textContent = mc.full ? '작게 보기 (Esc)' : '편집기 크게 보기';
+}
+
+/* ---------- 라이브러리 · 모델 ---------- */
+const LIBS = {
+  tf: 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js',
+  image: 'https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js',
+  pose: 'https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js',
+  audio: 'https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.4.0/dist/speech-commands.min.js'
+};
+const scriptCache = {};
+function loadScript(url) {
+  if (!scriptCache[url]) {
+    scriptCache[url] = new Promise((res, rej) => {
+      const s = document.createElement('script'); s.src = url; s.onload = res;
+      s.onerror = () => { delete scriptCache[url]; rej(new Error('LIB')); };
+      document.head.appendChild(s);
+    });
+  }
+  return scriptCache[url];
+}
+async function ensureLibs(type) {
+  await loadScript(LIBS.tf);
+  await loadScript(LIBS[type]);
+  const g = { image: 'tmImage', pose: 'tmPose', audio: 'speechCommands' }[type];
+  if (!window[g]) throw new Error('LIB');
+}
+
+function freshRT() { return { type: '', model: null, rec: null, labels: [], key: '', webcam: null, raf: 0, running: false, cand: -1, candN: 0, lastTop: -1, lastT: 0 }; }
+let rt = freshRT();
+
+async function loadModel(lab, st, url) {
+  const type = effectiveType(lab, st), R = rt;
+  await ensureLibs(type);
+  let labels, model = null, rec = null;
+  if (type === 'image') { model = await tmImage.load(url + 'model.json', url + 'metadata.json'); labels = model.getClassLabels(); }
+  else if (type === 'pose') { model = await tmPose.load(url + 'model.json', url + 'metadata.json'); labels = model.getClassLabels(); }
+  else {
+    rec = speechCommands.create('BROWSER_FFT', undefined, url + 'model.json', url + 'metadata.json');
+    await rec.ensureModelLoaded(); labels = rec.wordLabels();
+  }
+  R.model = model; R.rec = rec; R.type = type; R.labels = labels.slice(); R.key = url + '|' + type;
+  return labels;
+}
+
+async function onLoadClick() {
+  const lab = curLab(), st = L(lab.id), r = normalizeModelUrl(st.url);
+  if (!r.ok) { setMsg('#mStatus', 'err', r.msg); return; }
+  stopRuntime();
+  const btn = $('#btnLoad'); btn.disabled = true;
+  setMsg('#mStatus', '', '모델을 불러오는 중이에요… 처음에는 10초쯤 걸릴 수 있어요.');
+  try {
+    const labels = await loadModel(lab, st, r.url);
+    if (st.modelUrl !== r.url) { st.sent = {}; st.real = 0; }
+    st.modelOK = true; st.modelType = effectiveType(lab, st); st.modelUrl = r.url; st.classes = labels.slice();
+    Object.keys(st.map).forEach((k) => { if (st.classes.indexOf(k) < 0) delete st.map[k]; });
+    save();
+    if (S.cur !== lab.id) return;
+    renderModelStatus(); renderMap(); buildBars(); renderEx(); renderTests(); renderSentInfo(); renderTabs();
+  } catch (e) {
+    console.error(e);
+    setMsg('#mStatus', 'err', e && e.message === 'LIB'
+      ? '인공지능 도구를 불러오지 못했어요. 인터넷 연결을 확인해 주세요. (학교 네트워크에서 cdn.jsdelivr.net 이 막혀 있으면 선생님께 알려 주세요.)'
+      : '모델을 불러오지 못했어요. 링크가 맞는지, Teachable Machine에서 [모델 업로드]를 끝냈는지 확인해 주세요.');
+  } finally { btn.disabled = false; }
+}
+
+/* ---------- 카메라 · 마이크 실행 ---------- */
+function setRunUI(on) {
+  const run = $('#btnRun'), stop = $('#btnStop'); if (!run) return;
+  run.disabled = on; stop.disabled = !on;
+}
+async function runStart() {
+  const lab = curLab(), st = L(lab.id);
+  if (!st.modelOK) { toast('먼저 1번에서 모델을 불러와 주세요.'); return; }
+  const type = effectiveType(lab, st);
+  $('#btnRun').disabled = true;
+  try {
+    if (rt.key !== st.modelUrl + '|' + type) await loadModel(lab, st, st.modelUrl);
+    rt.labels = st.classes.slice(); rt.cand = -1; rt.candN = 0; rt.lastTop = -1; rt.lastT = 0;
+    rt.running = true;
+    if (type === 'audio') {
+      $('#cam').textContent = '🎤 듣고 있어요. 소리를 내 보세요.';
+      await rt.rec.listen((res) => { if (rt.running) onScores(Array.from(res.scores)); },
+        { includeSpectrogramInOutput: false, probabilityThreshold: 0.75, invokeCallbackOnNoiseAndUnknown: true, overlapFactor: 0.5 });
+    } else {
+      const W = type === 'image' ? tmImage.Webcam : tmPose.Webcam;
+      rt.webcam = new W(300, 300, true);
+      await rt.webcam.setup(); await rt.webcam.play();
+      const cam = $('#cam'); cam.innerHTML = ''; cam.appendChild(rt.webcam.canvas);
+      rt.raf = requestAnimationFrame(loop);
+    }
+    setRunUI(true);
+  } catch (e) {
+    console.error(e); stopRuntime();
+    toast(e && e.name === 'NotAllowedError' ? '카메라(마이크) 사용을 허용해 주세요.' : e && e.message === 'LIB' ? '인공지능 도구를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.' : '시작하지 못했어요. 카메라(마이크)가 연결돼 있는지 확인해 주세요.');
+  }
+}
+async function loop() {
+  if (!rt.running || !rt.webcam) return;
+  try {
+    rt.webcam.update();
+    let preds;
+    if (rt.type === 'pose') {
+      const out = await rt.model.estimatePose(rt.webcam.canvas);
+      preds = await rt.model.predict(out.posenetOutput);
+      if (out.pose && window.tmPose) {
+        const ctx = rt.webcam.canvas.getContext('2d');
+        tmPose.drawKeypoints(out.pose.keypoints, 0.5, ctx); tmPose.drawSkeleton(out.pose.keypoints, 0.5, ctx);
+      }
+    } else preds = await rt.model.predict(rt.webcam.canvas);
+    if (rt.running) onScores(rt.labels.map((l) => { const f = preds.find((p) => p.className === l); return f ? f.probability : 0; }));
+  } catch (e) { console.error(e); }
+  if (rt.running) rt.raf = requestAnimationFrame(loop);
+}
+function stopRuntime() {
+  rt.running = false; cancelAnimationFrame(rt.raf);
+  try { if (rt.webcam) rt.webcam.stop(); } catch (e) { /* 이미 멈춤 */ }
+  rt.webcam = null;
+  try { if (rt.rec && rt.rec.isListening()) rt.rec.stopListening(); } catch (e) { /* 이미 멈춤 */ }
+  const cam = $('#cam'); if (cam) cam.textContent = CAM_EMPTY;
+  setRunUI(false);
+}
+
+function onScores(probs) {
+  updateBars(probs);
+  let top = 0; probs.forEach((p, i) => { if (p > probs[top]) top = i; });
+  if (probs[top] < CONFIG.confidence) { rt.cand = -1; rt.candN = 0; return; }
+  if (top === rt.cand) rt.candN++; else { rt.cand = top; rt.candN = 1; }
+  const need = rt.type === 'audio' ? 2 : 4;
+  if (rt.candN >= need && top !== rt.lastTop && Date.now() - rt.lastT >= CONFIG.sendIntervalMs) {
+    rt.lastTop = top; rt.lastT = Date.now(); fire(top);
+  }
+}
+function fire(i) {
+  const st = L(S.cur), label = rt.labels[i], act = st.map[label];
+  if (!act) return;
+  st.sent[label] = (st.sent[label] || 0) + 1;
+  runAndShow(signalFor(i), label);
+  if (ser.ok) { serSend(signalFor(i)); st.real = (st.real || 0) + 1; }
+  save(); renderSentInfo();
+}
+
+/* ---------- 마이크로비트 USB 시리얼 ---------- */
+const ser = { port: null, writer: null, ok: false };
+function renderSerial() {
+  const b = $('#btnSerial'); if (!b) return;
+  $('#serState').innerHTML = '<span class="dot' + (ser.ok ? ' on' : '') + '"></span>' + (ser.ok ? '연결됨' : '연결 안 됨');
+  b.textContent = ser.ok ? '연결 끊기' : '마이크로비트 연결';
+  $('#serHelp').textContent = 'serial' in navigator ? '' : '이 브라우저는 USB 연결을 지원하지 않아요. Chrome 또는 Edge로 열어 주세요. (가상 마이크로비트는 그대로 쓸 수 있어요.)';
+}
+async function onSerialClick() {
+  if (ser.ok) { await serClose(); renderSerial(); return; }
+  if (!('serial' in navigator)) { toast('Chrome 또는 Edge 브라우저에서 열어 주세요.'); renderSerial(); return; }
+  try {
+    ser.port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x0d28 }] });
+    await ser.port.open({ baudRate: 115200 });
+    ser.writer = ser.port.writable.getWriter(); ser.ok = true;
+    toast('마이크로비트와 연결됐어요.');
+  } catch (e) {
+    ser.ok = false;
+    if (e && e.name !== 'NotFoundError') $('#serHelp').textContent = '연결하지 못했어요. MakeCode 화면에서 USB 연결을 끊고, 다른 프로그램이 마이크로비트를 쓰고 있지 않은지 확인한 뒤 다시 눌러 주세요.';
+  }
+  renderSerial();
+}
+async function serClose() {
+  try { if (ser.writer) { ser.writer.releaseLock(); } if (ser.port) await ser.port.close(); } catch (e) { /* 이미 닫힘 */ }
+  ser.port = null; ser.writer = null; ser.ok = false;
+}
+async function serSend(text) {
+  try { await ser.writer.write(new TextEncoder().encode(text + '\n')); }
+  catch (e) { await serClose(); renderSerial(); toast('마이크로비트와 연결이 끊어졌어요. 다시 연결해 주세요.'); }
+}
+if ('serial' in navigator) navigator.serial.addEventListener('disconnect', () => { serClose().then(renderSerial); });
+
+/* ---------- 코드 검사 · 제출 ---------- */
+async function onCodeCheck() {
+  const lab = curLab(), st = L(lab.id), rows = mappedRows(st);
+  if (!rows.length) { setMsg('#codeMsg', 'err', '2번 연결표를 먼저 채워 주세요.'); return; }
+  setMsg('#codeMsg', '', '내 코드를 실행해서 확인하는 중이에요…');
+  await mcRequestSave();
+  const code = effectiveCode(st);
+  if (!code.trim()) { setMsg('#codeMsg', 'err', '아직 코드가 없어요. 위 편집기에서 블록을 만들어 보세요.'); return; }
+  const run = await evalCode(code, rows, runCode);
+  if (S.cur !== lab.id) return;
+  if (run.ok && run.recv) setMsg('#codeMsg', 'ok', '✔ 신호 ' + rows.length + '개가 모두 연결표대로 움직여요.');
+  else if (!run.recv) setMsg('#codeMsg', 'err', receiverHint(code));
+  else setMsg('#codeMsg', 'err', '아직 맞지 않아요: ' + run.rows.filter((r) => !r.ok).map((r) => '신호 “' + r.sig + '”(' + r.cls + ') → ' + ACT[r.action].label + ': ' + r.why).join(' / '));
+}
+
+let grading = false;
+async function onSubmit() {
+  if (grading) return;
+  const sid = S.student.sid.trim(), name = S.student.name.trim();
+  if (!sid || !name) { toast('위쪽에 학번과 이름을 먼저 입력해 주세요.'); $(sid ? '#inName' : '#inSid').focus(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+  const lab = curLab(), st = L(lab.id), btn = $('#btnSubmit');
+  grading = true; btn.disabled = true; btn.textContent = '내 코드를 실행해서 채점하는 중…';
+  try {
+    await mcRequestSave();
+    const code = effectiveCode(st);
+    const run = await evalCode(code, mappedRows(st), runCode);
+    const res = gradeLab(lab, st, run);
+    st.sub.n++;
+    if (res.pass && !st.sub.first) st.sub.first = st.sub.n;
+    st.sub.last = { pass: res.pass, okN: res.okN, total: res.total };
+    save(); renderDash(); renderTabs();
+    if (S.cur === lab.id) renderResult(res);
+    if (CONFIG.sheetUrl) {
+      const payload = {
+        sid, name, lab: lab.id, title: lab.title, pass: res.pass ? 1 : 0, score: res.okN + '/' + res.total, n: st.sub.n, first: st.sub.first,
+        real: st.real || 0, type: st.modelType, url: st.modelUrl, classes: st.classes, map: mappedRows(st).map((r) => r.sig + ':' + r.cls + '=' + ACT[r.action].label),
+        code, notes: st.notes, ts: Date.now()
+      };
+      fetch(CONFIG.sheetUrl, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) }).catch(() => { /* 전송 실패는 결과 코드로 대신 제출 */ });
+    }
+  } finally {
+    grading = false;
+    const b = $('#btnSubmit'); if (b) { b.disabled = false; b.textContent = '제출하고 자동 채점'; }
+  }
+}
+
+function renderResult(res) {
+  const st = L(S.cur), box = $('#resultBox'), my = $('#myCodeBox');
+  if (!st.sub.n) { box.innerHTML = ''; my.innerHTML = ''; return; }
+  const last = st.sub.last;
+  let html = '<div class="metrics"><div class="stat"><span>이 실습 제출 횟수</span><b>' + st.sub.n + '회</b></div>' +
+    '<div class="stat"><span>완성까지</span><b>' + (st.sub.first ? st.sub.first + '번째에 완성' : '아직 미완성') + '</b></div></div>';
+  html += '<p class="verdict ' + (last.pass ? 'ok' : 'no') + '">' + (last.pass ? '모든 조건을 채웠어요. 이 실습은 완성이에요!' : '조건 ' + (last.total - last.okN) + '개가 더 필요해요.') + '</p>';
+  if (res) {
+    html += '<ul class="check">' + res.items.map((i) =>
+      '<li class="' + (i.ok ? 'ok' : 'no') + (i.required ? '' : ' opt') + '"><span class="mk">' + (i.ok ? '✔' : '✘') + '</span><span>' + esc(i.label) +
+      (i.ok ? '' : '<span class="hint">' + esc(i.hint) + '</span>') + '</span></li>').join('') + '</ul>';
+    if (res.mode === 'static') html += '<p class="small" style="margin-top:8px">이 코드는 실행해 볼 수 없어서 글자 모양으로 검사했어요.</p>';
+  } else {
+    html += '<p class="small">마지막 제출: ' + last.okN + '/' + last.total + '개 충족. 고친 뒤 다시 제출하면 자세한 안내가 나와요.</p>';
+  }
+  if (CONFIG.sheetUrl && res) html += '<p class="small" style="margin-top:8px">결과를 선생님 시트로 보냈어요.</p>';
+  box.innerHTML = html;
+  const code = encodeResult(buildResult(S));
+  my.innerHTML = '<h3 style="font-size:.98rem;margin-top:16px">내 결과 코드</h3><p class="small">선생님이 알려 주신 방법으로 이 코드를 내면 제출이 끝나요. 실습을 더 제출하면 코드가 새로 만들어져요.</p>' +
+    '<textarea id="myCode" rows="3" readonly style="font:12px/1.4 ui-monospace,Consolas,monospace">' + esc(code) + '</textarea>' +
+    '<button type="button" class="btn sm" id="btnCopyMy" style="margin-top:8px">결과 코드 복사</button>';
+  $('#btnCopyMy').addEventListener('click', () => copyText($('#myCode').value));
+}
+
+/* ---------- 교사 모드 ---------- */
+let tList = [];
+function openDlg(html) {
+  const d = $('#dlg'); d.innerHTML = html;
+  $$('[data-close]', d).forEach((b) => b.addEventListener('click', () => d.close()));
+  if (!d.open) d.showModal();
+}
+function openTeacher() {
+  openDlg('<div class="dlg-h"><h3>교사 모드</h3><button type="button" class="btn sm ghost" data-close style="color:var(--ink)">닫기</button></div>' +
+    '<form id="pwForm"><label class="small" for="pw" style="font-weight:700">비밀번호</label><div class="row" style="flex-wrap:nowrap"><input type="password" id="pw" autocomplete="off"><button class="btn" type="submit">확인</button></div><div class="msg err" id="pwMsg" style="display:none">비밀번호가 달라요.</div></form>');
+  $('#pw').focus();
+  $('#pwForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    if ($('#pw').value === CONFIG.teacherPassword) teacherPanel(); else { $('#pwMsg').style.display = ''; $('#pw').select(); }
+  });
+}
+function teacherPanel() {
+  openDlg('<div class="dlg-h"><h3>교사 모드 · 결과 모아 보기</h3><button type="button" class="btn sm ghost" data-close style="color:var(--ink)">닫기</button></div>' +
+    '<p class="small">학생이 복사해 온 <b>결과 코드</b>를 한 줄에 하나씩 붙여 넣으세요. 같은 학번은 가장 최근 제출만 남겨요.</p>' +
+    '<textarea id="tCodes" rows="5" style="font:12px/1.4 ui-monospace,Consolas,monospace" placeholder="MBAI1.…"></textarea>' +
+    '<div class="row" style="margin-top:8px"><button type="button" class="btn sm" id="tShow">표로 보기</button><button type="button" class="btn sm ghost" id="tLocal" style="color:var(--ink)">이 컴퓨터 기록 추가</button><button type="button" class="btn sm led" id="tCsv">CSV 저장</button></div>' +
+    '<p class="small" id="tInfo" style="margin-top:8px"></p><div class="tblwrap" id="tTable"></div>' +
+    '<p class="small" style="margin-top:10px">비밀번호·점수 기준·전송 주소는 index.html 맨 위 CONFIG에서 바꿔요.' + (CONFIG.teacherPassword === '1234' ? ' <b>지금은 기본 비밀번호(1234)예요. 배포 전에 꼭 바꿔 주세요.</b>' : '') + '</p>');
+  $('#tShow').addEventListener('click', () => { tList = []; collect($('#tCodes').value); drawTable(); });
+  $('#tLocal').addEventListener('click', () => {
+    const r = buildResult(S);
+    if (!r.sid || !Object.keys(r.labs).length) { toast('이 컴퓨터에 제출 기록이 없어요.'); return; }
+    mergeResult(r); drawTable();
+  });
+  $('#tCsv').addEventListener('click', () => {
+    if (!tList.length) { toast('먼저 [표로 보기]를 눌러 주세요.'); return; }
+    const blob = new Blob(['﻿' + rowsToCSV(resultsToRows(tList))], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'microbit-ai-결과.csv'; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  });
+}
+function mergeResult(r) {
+  const key = r.sid || r.name, i = tList.findIndex((x) => (x.sid || x.name) === key);
+  if (i < 0) tList.push(r); else if (r.ts > tList[i].ts) tList[i] = r;
+}
+let tBad = [];
+function collect(text) {
+  tBad = [];
+  text.split(/\r?\n/).forEach((ln, i) => {
+    if (!ln.trim()) return;
+    const d = decodeResult(ln);
+    if (d.ok) mergeResult(d.data); else tBad.push((i + 1) + '번째 줄: ' + d.msg);
+  });
+}
+function drawTable() {
+  const rows = resultsToRows(tList), skip = 13;
+  const head = CSV_HEAD.filter((h, i) => i !== skip);
+  $('#tInfo').textContent = '학생 ' + tList.length + '명 · 기록 ' + rows.length + '건' + (tBad.length ? ' · 읽지 못한 코드 ' + tBad.length + '건 (' + tBad.slice(0, 3).join(', ') + ')' : '');
+  $('#tTable').innerHTML = rows.length
+    ? '<table class="res"><thead><tr>' + head.map((h) => '<th>' + h + '</th>').join('') + '</tr></thead><tbody>' +
+      rows.map((r) => '<tr>' + r.filter((c, i) => i !== skip).map((c, i) => '<td class="' + (i === 3 && c === '완성' ? 'okc' : '') + '" title="' + esc(c) + '">' + esc(c) + '</td>').join('') + '</tr>').join('') + '</tbody></table>'
+    : '<div class="empty">표시할 결과가 없어요.</div>';
+}
+
+/* ---------- 시작 ---------- */
+function init() {
+  buildLogo();
+  $('#inSid').value = S.student.sid; $('#inName').value = S.student.name;
+  $('#inSid').addEventListener('input', (e) => { S.student.sid = e.target.value; save(); });
+  $('#inName').addEventListener('input', (e) => { S.student.name = e.target.value; save(); });
+  $('#tabs').addEventListener('click', (e) => {
+    const b = e.target.closest('.tab'); if (!b) return;
+    S.cur = +b.dataset.id; save(); renderTabs(); renderLab();
+  });
+  $('#btnTeacher').addEventListener('click', openTeacher);
+  $('#btnReset').addEventListener('click', () => {
+    if (!confirm('모든 실습의 진행 상태(모델·연결표·코드·제출 기록)를 지울까요? 학번과 이름은 남아요.')) return;
+    stopRuntime(); S.labs = {}; S.cur = 1; save(); renderDash(); renderTabs(); renderLab(); toast('처음부터 다시 시작해요.');
+  });
+  window.addEventListener('message', onMcMessage);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && mc.full) toggleMcFull(); });
+  window.addEventListener('pagehide', () => { stopRuntime(); });
+  renderDash(); renderTabs(); renderLab();
+}
+init();
+</script>
+</body>
+</html>
