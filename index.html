@@ -1517,7 +1517,6 @@ function mailBody(info, full) {
     lab.notes.forEach((n) => L_.push('글쓰기 - ' + n.label + '\n  ' + String((st.notes && st.notes[n.id]) || '').trim().replace(/\n/g, '\n  ')));
     L_.push('코드:\n' + code);
   }
-  L_.push('결과 코드(교사 모드에 붙여 넣기): ' + encodeResult(buildResult(S)));
   return L_.join('\n\n');
 }
 async function sendMail(info) {
@@ -1643,11 +1642,7 @@ function renderResult(res) {
   }
   if (CONFIG.sheetUrl && res) html += '<p class="small" style="margin-top:8px">결과를 선생님께 전송했어요. (선생님 시트·메일에 도착해요)</p>';
   box.innerHTML = html;
-  const code = encodeResult(buildResult(S));
-  my.innerHTML = '<h3 style="font-size:.98rem;margin-top:16px">내 결과 코드</h3><p class="small">선생님이 알려 주신 방법으로 이 코드를 내면 제출이 끝나요. 실습을 더 제출하면 코드가 새로 만들어져요.</p>' +
-    '<textarea id="myCode" rows="3" readonly style="font:12px/1.4 ui-monospace,Consolas,monospace">' + esc(code) + '</textarea>' +
-    '<button type="button" class="btn sm" id="btnCopyMy" style="margin-top:8px">결과 코드 복사</button>';
-  $('#btnCopyMy').addEventListener('click', () => copyText($('#myCode').value));
+  my.innerHTML = '';
 }
 
 /* ---------- 교사 모드 ---------- */
