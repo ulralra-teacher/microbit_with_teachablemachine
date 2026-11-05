@@ -218,12 +218,9 @@ footer{padding:26px 0 40px;color:var(--mute);font-size:.85rem}
       </div>
     </div>
     <div class="card">
-      <h3>학생 정보</h3>
-      <p class="small" style="margin:2px 0 10px">학번과 이름은 이 컴퓨터에 자동으로 저장돼요.</p>
-      <div class="row">
-        <div class="field"><label for="inSid">학번</label><input type="text" id="inSid" inputmode="numeric" autocomplete="off" placeholder="예) 10101"></div>
-        <div class="field"><label for="inName">이름</label><input type="text" id="inName" autocomplete="off" placeholder="예) 홍길동"></div>
-      </div>
+      <h3>모둠 정보 <span class="small" style="font-weight:400">(2~3명이 함께 해도 돼요)</span></h3>
+      <p class="small" style="margin:2px 0 10px">학번과 이름은 이 컴퓨터에 자동으로 저장돼요. 팀원 1은 꼭 쓰고, 함께하는 친구는 팀원 2·3에 써요.</p>
+      <div id="memberBox"></div>
     </div>
   </section>
 
@@ -244,7 +241,11 @@ footer{padding:26px 0 40px;color:var(--mute);font-size:.85rem}
    ============================================================ */
 const CONFIG = {
   teacherPassword: '1234',     // 교사 모드 비밀번호 — 꼭 바꿔서 배포하세요
-  sheetUrl: '',                // 구글 앱스크립트 웹앱 주소(비우면 서버로 보내지 않음)
+  sheetUrl: '',                // (선택) 구글 앱스크립트 웹앱 주소(비우면 서버로 보내지 않음)
+  teacherEmail: 'iulralra@naver.com',   // 제출할 때마다 실습 결과를 이 주소로 메일 전송 (비우면 전송 안 함)
+  sheetLink: 'https://docs.google.com/spreadsheets/d/1ssQRtjWPoCVK1HhligzjFJjPVppdY1Yp8ft9skZn5Bc/edit?usp=sharing',  // 학생이 결과를 붙여 넣을 구글 시트
+  useFormSubmit: false,        // true: FormSubmit 서비스로 메일 전송(학교망에서 막히는 경우가 많아 기본 꺼 둠)
+  maxMembers: 3,              // 한 모둠(한 컴퓨터)에서 함께 실습할 수 있는 최대 인원
   showExampleCode: true,       // 학생에게 '예시 코드 보기' 제공 여부
   requireRealDevice: false,    // true: 실제 마이크로비트로 신호를 보내야 완성 처리
   confidence: 0.8,             // 이 확률 이상일 때만 신호를 보냄 (0~1)
@@ -301,6 +302,15 @@ ACTIONS.forEach((a) => {
   else a.kind = 'clear';
 });
 
+const exOne = (js) => [
+  'serial.onDataReceived(serial.delimiters(Delimiters.NewLine), function () {',
+  '    let cmd = serial.readUntil(serial.delimiters(Delimiters.NewLine))',
+  '    if (cmd == "A") {',
+  '        ' + js,
+  '    }',
+  '})'
+].join('\n');
+
 const MC_STEP = '3번 MakeCode 편집기에서 블록을 쌓아요. <b>시리얼통신 수신 데이터가 들어왔을 때</b>(줄 바꿈 문자 기준) 블록 안에서 <b>시리얼통신 수신: 줄 바꿈 문자 전까지</b>로 신호(A, B, C…)를 읽고, 신호마다 연결표의 동작을 하게 만들어요. 코드는 자동으로 저장돼요.';
 
 /* ============================================================
@@ -310,11 +320,14 @@ const MC_STEP = '3번 MakeCode 편집기에서 블록을 쌓아요. <b>시리얼
 const LABS = [
   {
     id: 1, type: 'image', level: '기초', emoji: '🙂',
-    title: '표정 로봇', sub: '이미지 모델로 LED 바꾸기',
-    mission: '카메라 앞에서 보여 주는 모습(표정·손동작·물건)을 인공지능이 알아보고, 마이크로비트 LED가 그에 맞게 바뀌도록 만들어 보세요.',
+    title: '표정 로봇', sub: '이미지 모델로 LED 그림 바꾸기',
+    mission: '카메라 앞에서 보여 주는 표정·손동작·물건을 인공지능이 알아보고, 마이크로비트 LED 그림이 그에 맞게 바뀌도록 만들어 보세요.',
     standard: '데이터로 인공지능 모델을 학습시키고, 그 결과를 피지컬 컴퓨팅 장치에 적용하는 과정을 체험한다.',
     expect: '이미지 모델의 분류 결과(클래스)가 마이크로비트 LED 동작으로 이어지는 흐름을 설명하고 만들 수 있다.',
     minClasses: 3, minActions: 3, minTest: 2, minGroups: 1,
+    groups: ['LED 그림', '끄기'], need: { 'LED 그림': 3 },
+    cond: '클래스 3개 이상 · 서로 다른 LED 그림 3개 이상 · 인식해서 보내 본 클래스 2개 이상 · 코드를 실행하면 연결표대로 움직임 · 글쓰기',
+    example: exOne('basic.showIcon(IconNames.Heart)'),
     notes: [
       { id: 'n1', label: '내 모델은 어떤 데이터로 학습시켰나요?', hint: '클래스 이름, 사진 수, 어떻게 찍었는지(각도·거리·배경)를 써 보세요.', min: 20 }
     ],
@@ -329,35 +342,41 @@ const LABS = [
   {
     id: 2, type: 'pose', level: '기초+', emoji: '🧍',
     title: '몸으로 하는 리모컨', sub: '포즈 모델로 방향 알려 주기',
-    mission: '내 몸의 자세(팔 들기, 한쪽으로 기울이기 등)를 인공지능이 알아보고, 마이크로비트 화살표가 방향을 가리키게 만들어 보세요.',
+    mission: '내 몸의 자세(팔 들기, 한쪽으로 기울이기 등)를 인공지능이 알아보고, 마이크로비트 화살표가 그 방향을 가리키게 만들어 보세요. 아무 자세도 하지 않은 ‘기본 자세’ 클래스는 LED를 꺼 두어요.',
     standard: '데이터로 인공지능 모델을 학습시키고, 그 결과를 피지컬 컴퓨팅 장치에 적용하는 과정을 체험한다.',
     expect: '포즈 모델이 자세를 분류하는 원리를 이해하고, 분류 결과로 장치를 제어하는 프로그램을 만들 수 있다.',
-    minClasses: 3, minActions: 3, minTest: 2, minGroups: 1,
+    minClasses: 4, minActions: 4, minTest: 3, minGroups: 1,
+    groups: ['화살표', '끄기'], need: { '화살표': 3 },
+    cond: '클래스 4개 이상 · 서로 다른 화살표 3개 이상 · 기본 자세 등 나머지는 LED 끄기 · 인식해서 보내 본 클래스 3개 이상 · 코드를 실행하면 연결표대로 움직임 · 글쓰기',
+    example: exOne('basic.showArrow(ArrowNames.North)'),
     notes: [
       { id: 'n1', label: '인식이 잘 안 되는 자세가 있었나요? 왜 그랬을까요?', hint: '두 자세가 비슷했는지, 학습 데이터가 적었는지 등 이유를 생각해 써 보세요.', min: 20 }
     ],
     steps: [
-      '<a href="{pose}" target="_blank" rel="noopener">Teachable Machine 포즈 프로젝트</a>에서 자세를 3개 이상 만들어요. 자세끼리 확실히 다르게 하면 더 잘 맞혀요.',
+      '<a href="{pose}" target="_blank" rel="noopener">Teachable Machine 포즈 프로젝트</a>에서 자세를 4개 이상 만들어요. 방향 자세 3개와 아무것도 안 하는 ‘기본 자세’ 1개예요. 자세끼리 확실히 다르게 하면 더 잘 맞혀요.',
       '카메라 앞에서 한 자세당 30장 이상 찍고 학습시킨 뒤, 모델 업로드 링크를 1번 칸에 붙여 넣어요.',
-      '2번 연결표에서 자세마다 화살표(또는 다른 동작)를 골라요.',
+      '2번 연결표에서 방향 자세는 서로 다른 화살표로, 기본 자세는 LED 끄기로 골라요.',
       MC_STEP,
       '4번에서 카메라를 켜고 자세를 바꿔 가며 내 코드가 제대로 반응하는지 확인해요.'
     ]
   },
   {
     id: 3, type: 'audio', level: '중급', emoji: '👏',
-    title: '소리 스위치', sub: '소리 모델로 LED·음 제어하기',
-    mission: '박수, 휘파람, 말소리 같은 소리를 인공지능이 구별하고, 소리에 따라 마이크로비트가 그림이나 음으로 반응하게 만들어 보세요.',
+    title: '소리 스위치', sub: '소리 모델로 음 연주하기',
+    mission: '박수, 휘파람, 말소리 같은 소리를 인공지능이 구별하고, 소리에 따라 마이크로비트가 음을 내게 만들어 보세요. 아무 소리도 없을 때(배경 소음)는 조용히 있어야 해요.',
     standard: '데이터로 인공지능 모델을 학습시키고, 그 결과를 피지컬 컴퓨팅 장치에 적용하는 과정을 체험한다.',
     expect: '소리 데이터를 학습한 모델의 결과를 이용해 장치를 제어하고, 인식 정확도를 높이는 방법을 설명할 수 있다.',
-    minClasses: 3, minActions: 3, minTest: 2, minGroups: 1,
+    minClasses: 3, minActions: 3, minTest: 3, minGroups: 1,
+    groups: ['소리', 'LED 그림', '끄기'], need: { '소리': 2 }, bgOff: true,
+    cond: '클래스 3개 이상(배경 소음 포함) · 서로 다른 음 2개 이상 · 배경 소음은 LED 끄기 · 인식해서 보내 본 클래스 3개 이상 · 코드를 실행하면 연결표대로 움직임 · 글쓰기',
+    example: exOne('music.playTone(262, music.beat(BeatFraction.Whole))'),
     notes: [
       { id: 'n1', label: '소리를 더 정확하게 구별하게 하려면 어떻게 하면 좋을까요?', hint: '‘배경 소음’ 클래스, 소리 샘플 수, 녹음 환경을 떠올려 써 보세요.', min: 20 }
     ],
     steps: [
       '<a href="{audio}" target="_blank" rel="noopener">Teachable Machine 오디오 프로젝트</a>에서 ‘배경 소음’ 클래스에 조용한 교실 소리를 20개 이상 녹음해요.',
       '소리 클래스를 2개 이상 더 만들고(예: 박수, 휘파람) 각각 15개 이상 녹음한 뒤 학습시켜요. 모델 업로드 링크는 1번 칸에 붙여 넣어요.',
-      '2번 연결표에서 소리마다 동작을 골라요. ‘배경 소음’은 LED 끄기가 어울려요.',
+      '2번 연결표에서 ‘배경 소음’은 반드시 LED 끄기로, 나머지 소리는 서로 다른 음을 2개 이상 골라요.',
       MC_STEP,
       '4번에서 마이크를 켜고 소리를 내 보며 내 코드가 제대로 반응하는지 확인해요.'
     ]
@@ -369,6 +388,8 @@ const LABS = [
     standard: '문제 해결에 알맞은 인공지능 모델을 선택해 학습시키고, 피지컬 컴퓨팅 장치로 구현해 개선한다.',
     expect: '해결할 문제에 맞는 모델과 출력 방식을 스스로 선택하고, 한계와 개선점을 설명할 수 있다.',
     minClasses: 3, minActions: 4, minTest: 3, minGroups: 2,
+    cond: '클래스 3개 이상 · 서로 다른 동작 4개 이상 · LED와 소리를 함께 사용 · 인식해서 보내 본 클래스 3개 이상 · 코드를 실행하면 연결표대로 움직임 · 글쓰기',
+    example: exOne('basic.showIcon(IconNames.Happy)'),
     notes: [
       { id: 'n1', label: '어떤 문제를 해결하려고 하나요? 누가 어떻게 사용하나요?', hint: '예) 도서관에서 큰 소리가 나면 LED로 조용히 하라고 알려 주는 장치', min: 30 },
       { id: 'n2', label: '모델을 고른 까닭과, 더 좋게 만들 방법을 써 보세요.', hint: '왜 이미지/포즈/소리 중 이 모델을 골랐는지, 잘못 인식한 경우를 어떻게 줄일지 써 보세요.', min: 30 }
@@ -576,6 +597,25 @@ function gradeLab(lab, st, run) {
       hint: 'LED 그림·화살표와 소리를 모두 연결해 보세요.'
     });
   }
+  if (lab.need) {
+    Object.keys(lab.need).forEach((g) => {
+      const n = new Set(rows.filter((r) => ACT[r.action].group === g).map((r) => r.action)).size;
+      items.push({
+        id: 'need_' + g, required: true, ok: n >= lab.need[g],
+        label: '서로 다른 ' + g + ' 동작 ' + lab.need[g] + '개 이상',
+        hint: '지금 ' + g + ' 동작이 ' + n + '개예요. 2번 연결표에서 ' + g + ' 동작을 더 골라 보세요.'
+      });
+    });
+  }
+  if (lab.bgOff) {
+    const bg = (st.classes || []).find((c) => /background|noise|배경|소음/i.test(c));
+    items.push({
+      id: 'bg', required: true, ok: !!bg && st.map[bg] === 'off',
+      label: '‘배경 소음’ 클래스는 LED 끄기로 연결',
+      hint: bg ? '‘' + bg + '’ 클래스를 ‘LED 끄기’로 골라 보세요. 소리가 없을 때는 조용히 있어야 해요.'
+               : '배경 소음 클래스를 찾을 수 없어요. 오디오 모델에는 ‘배경 소음’ 클래스가 꼭 필요해요.'
+    });
+  }
   const tested = rows.filter((r) => (st.sent && st.sent[r.cls] || 0) > 0).length;
   items.push({
     id: 'test', required: true, ok: tested >= lab.minTest,
@@ -651,7 +691,9 @@ function buildResult(S) {
       a: lab.notes.map((n) => String((st.notes && st.notes[n.id]) || '').trim().slice(0, 400))
     };
   });
-  return { v: 1, sid: S.student.sid, name: S.student.name, ts: Date.now(), labs };
+  const team = teamList();
+  const extra = team.filter((m) => !(m.sid === String(S.student.sid).trim() && m.name === String(S.student.name).trim()));
+  return { v: 1, sid: S.student.sid, name: S.student.name, mem: extra, ts: Date.now(), labs };
 }
 
 function csvCell(v) {
@@ -659,19 +701,23 @@ function csvCell(v) {
   return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 }
 
-const CSV_HEAD = ['학번', '이름', '실습', '완성', '충족/전체', '제출횟수', '완성까지(회)', '실기 전송(회)', '모델 종류', '클래스 수', '연결 동작 수', '글쓰기 1', '글쓰기 2', '모델 링크', '최근 제출'];
+const CSV_HEAD = ['학번', '이름', '모둠원', '실습', '완성', '충족/전체', '제출횟수', '완성까지(회)', '실기 전송(회)', '모델 종류', '클래스 수', '연결 동작 수', '글쓰기 1', '글쓰기 2', '모델 링크', '최근 제출'];
 
 function resultsToRows(list) {
   const rows = [];
   list.forEach((r) => {
+    const people = [{ sid: r.sid, name: r.name }].concat(r.mem || []);
+    const group = people.length > 1 ? people.map((p) => p.name).join('·') : '';
     Object.keys(r.labs || {}).sort().forEach((id) => {
       const L = r.labs[id];
       const lab = LABS.find((x) => String(x.id) === String(id));
-      rows.push([
-        r.sid, r.name, lab ? lab.id + '. ' + lab.title : id, L.p ? '완성' : '미완성', L.s, L.n, L.f || '',
-        L.r, TYPE_LABEL[L.t] || L.t, L.c, L.m, (L.a || [])[0] || '', (L.a || [])[1] || '', L.u,
-        new Date(r.ts).toLocaleString('ko-KR')
-      ]);
+      people.forEach((p) => {
+        rows.push([
+          p.sid, p.name, group, lab ? lab.id + '. ' + lab.title : id, L.p ? '완성' : '미완성', L.s, L.n, L.f || '',
+          L.r, TYPE_LABEL[L.t] || L.t, L.c, L.m, (L.a || [])[0] || '', (L.a || [])[1] || '', L.u,
+          new Date(r.ts).toLocaleString('ko-KR')
+        ]);
+      });
     });
   });
   return rows;
@@ -834,11 +880,21 @@ function blankLab() {
 function loadState() {
   try {
     const j = JSON.parse(localStorage.getItem(KEY));
-    if (j && j.labs && j.student) return j;
+    if (j && j.labs && j.student) { if (!Array.isArray(j.members)) j.members = []; return j; }
   } catch (e) { /* 저장된 값 없음 */ }
-  return { student: { sid: '', name: '' }, cur: 1, labs: {} };
+  return { student: { sid: '', name: '' }, members: [], cur: 1, labs: {} };
 }
 let S = loadState();
+/* 모둠 전체(팀원 1 + 함께하는 친구) 중 학번과 이름이 모두 채워진 사람 */
+function teamList() {
+  const all = [S.student].concat((S.members || []).slice(0, Math.max(0, CONFIG.maxMembers - 1)));
+  return all.map((m) => ({ sid: String((m && m.sid) || '').trim(), name: String((m && m.name) || '').trim() })).filter((m) => m.sid && m.name);
+}
+/* 한쪽(학번 또는 이름)만 쓴 팀원이 있는지 */
+function halfMember() {
+  const all = (S.members || []).slice(0, Math.max(0, CONFIG.maxMembers - 1));
+  return all.findIndex((m) => m && ((String(m.sid || '').trim() && !String(m.name || '').trim()) || (!String(m.sid || '').trim() && String(m.name || '').trim())));
+}
 function L(id) { if (!S.labs[id]) S.labs[id] = blankLab(); return S.labs[id]; }
 function curLab() { return LABS.find((l) => l.id === S.cur) || LABS[0]; }
 let saveTimer;
@@ -865,6 +921,26 @@ function fallbackCopy(text, done) {
 function setMsg(sel, kind, text) {
   const el = $(sel); if (!el) return;
   el.className = 'msg' + (kind ? ' ' + kind : ''); el.textContent = text; el.style.display = text ? '' : 'none';
+}
+
+/* ---------- 모둠(팀원) 입력칸 ---------- */
+function buildMembers() {
+  const n = Math.max(1, CONFIG.maxMembers), box = $('#memberBox');
+  let html = '';
+  for (let i = 0; i < n; i++) {
+    const m = i === 0 ? S.student : (S.members[i - 1] || { sid: '', name: '' });
+    html += '<div class="row" style="margin-bottom:6px;align-items:flex-end">' +
+      '<div class="field" style="flex:0 0 52px;font-weight:700;padding-bottom:9px">' + (i === 0 ? '팀원 1' : '팀원 ' + (i + 1)) + '</div>' +
+      '<div class="field"><label for="mSid' + i + '">학번' + (i === 0 ? '' : ' (선택)') + '</label><input type="text" id="mSid' + i + '" data-m="' + i + '" data-f="sid" inputmode="numeric" autocomplete="off" placeholder="예) 10101" value="' + esc(m.sid || '') + '"></div>' +
+      '<div class="field"><label for="mName' + i + '">이름' + (i === 0 ? '' : ' (선택)') + '</label><input type="text" id="mName' + i + '" data-m="' + i + '" data-f="name" autocomplete="off" placeholder="예) 홍길동" value="' + esc(m.name || '') + '"></div></div>';
+  }
+  box.innerHTML = html;
+  $$('input[data-m]', box).forEach((inp) => inp.addEventListener('input', () => {
+    const i = +inp.dataset.m;
+    if (i === 0) S.student[inp.dataset.f] = inp.value;
+    else { while (S.members.length < i) S.members.push({ sid: '', name: '' }); S.members[i - 1][inp.dataset.f] = inp.value; }
+    save();
+  }));
 }
 
 /* ---------- 상단 · 현황 ---------- */
@@ -895,10 +971,12 @@ function renderTabs() {
 }
 
 /* ---------- 실습 화면 ---------- */
-const ACT_OPTS = '<option value="">사용 안 함</option>' + (() => {
-  const g = {}; ACTIONS.forEach((a) => { (g[a.group] = g[a.group] || []).push(a); });
-  return Object.keys(g).map((k) => '<optgroup label="' + k + '">' + g[k].map((a) => '<option value="' + a.id + '">' + a.label + '</option>').join('') + '</optgroup>').join('');
-})();
+function actOpts(lab) {
+  const g = {};
+  ACTIONS.forEach((a) => { if (!lab.groups || lab.groups.indexOf(a.group) >= 0) (g[a.group] = g[a.group] || []).push(a); });
+  return '<option value="">사용 안 함</option>' + Object.keys(g).map((k) =>
+    '<optgroup label="' + k + '">' + g[k].map((a) => '<option value="' + a.id + '">' + a.label + '</option>').join('') + '</optgroup>').join('');
+}
 const CAM_EMPTY = '카메라(마이크)를 켜면 여기에 나와요.';
 
 function labHTML(lab, st) {
@@ -914,8 +992,8 @@ function labHTML(lab, st) {
     '<textarea id="note_' + n.id + '" rows="3" data-note="' + n.id + '">' + esc((st.notes && st.notes[n.id]) || '') + '</textarea>' +
     '<div class="counter" id="cnt_' + n.id + '"></div></div>').join('');
   const ex = CONFIG.showExampleCode
-    ? '<details class="ex"><summary>막히면 예시 코드 보기</summary><p class="small" style="margin-top:6px">2번 연결표대로 만든 예시예요. 먼저 블록으로 직접 만들어 보고, 비교할 때 열어 보세요. 편집기 위쪽의 JavaScript 탭에 붙여 넣어 볼 수도 있어요.</p>' +
-      '<pre class="code" id="exCode"></pre><button type="button" class="btn sm ghost" id="btnCopyEx" style="color:var(--ink)">예시 코드 복사</button></details>'
+    ? '<details class="ex"><summary>막히면 예시 코드 보기</summary><p class="small" style="margin-top:6px">신호 <b>하나(A)</b>만 처리하는 아주 간단한 예시예요. 신호는 변수에 한 번만 저장하고, 나머지 신호(B, C…)는 같은 방법으로 직접 이어서 만들어 보세요.</p>' +
+      '<pre class="code" id="exCode"></pre></details>'
     : '';
 
   return '' +
@@ -923,7 +1001,7 @@ function labHTML(lab, st) {
       '<div class="card"><span class="lvl">실습 ' + lab.id + ' · ' + lab.level + '</span><h2>' + lab.emoji + ' ' + esc(lab.title) + '</h2><p class="mission">' + esc(lab.mission) + '</p>' +
       '<h3 style="font-size:.95rem;margin-top:14px">해결 순서</h3><ol class="steps">' + steps + '</ol></div>' +
       '<div class="card"><dl class="std"><div><dt>성취기준</dt><dd>' + esc(lab.standard) + '</dd></div><div><dt>성취 기대</dt><dd>' + esc(lab.expect) + '</dd></div>' +
-      '<div><dt>완성 조건</dt><dd>클래스 ' + lab.minClasses + '개 이상 · 서로 다른 동작 ' + lab.minActions + '개 이상 · 인식해서 보내 본 클래스 ' + lab.minTest + '개 이상 · 코드를 실행하면 연결표대로 움직임 · 글쓰기</dd></div></dl></div>' +
+      '<div><dt>완성 조건</dt><dd>' + esc(lab.cond) + '</dd></div></dl></div>' +
     '</div>' +
     '<div class="stack">' +
     '<div class="pair">' +
@@ -964,9 +1042,9 @@ function labHTML(lab, st) {
       '</div></div></article>' +
     '<article class="card"><h3><span class="n">5</span>생각 쓰기</h3>' + notes + '</article>' +
     '<article class="card"><h3><span class="n">6</span>제출하고 자동 채점</h3>' +
-      '<p class="lead">제출하면 연결표의 신호마다 내 코드를 실제로 실행해서 확인해요. 조건을 모두 채울 때까지 여러 번 제출할 수 있고, 제출할 때마다 횟수가 쌓여요.</p>' +
+      '<p class="lead">제출하면 연결표의 신호마다 내 코드를 실제로 실행해서 확인해요. 조건을 모두 채울 때까지 여러 번 제출할 수 있고, 제출할 때마다 횟수가 쌓여요. 제출한 뒤 나오는 <b>[결과 복사하기]</b>로 복사해서 선생님 구글 시트에 붙여 넣으면 제출이 끝나요. 팀원 모두의 이름으로 기록돼요.</p>' +
       '<button type="button" class="btn led" id="btnSubmit">제출하고 자동 채점</button>' +
-      '<div id="resultBox"></div><div id="myCodeBox"></div></article>' +
+      '<div id="resultBox"></div><div id="mailBox"></div><div id="myCodeBox"></div></article>' +
     '</div>';
 }
 
@@ -1024,10 +1102,12 @@ function renderModelStatus() {
 
 function renderMap() {
   const st = L(S.cur), box = $('#mapBox');
+  const lab = curLab();
+  if (lab.groups) Object.keys(st.map).forEach((c) => { const a = ACT[st.map[c]]; if (!a || lab.groups.indexOf(a.group) < 0) delete st.map[c]; });
   if (!st.classes.length) { box.innerHTML = '<div class="empty">1번에서 모델을 불러오면 클래스 목록이 여기에 나와요.</div>'; return; }
   box.innerHTML = '<table class="map"><thead><tr><th>클래스</th><th>신호</th><th>마이크로비트 동작</th></tr></thead><tbody>' +
     st.classes.map((c, i) => '<tr><td>' + esc(c) + '</td><td><button type="button" class="sig" data-prev="' + i + '" title="고른 동작 미리보기">' + signalFor(i) + '</button></td>' +
-      '<td><select data-i="' + i + '" aria-label="' + esc(c) + ' 동작">' + ACT_OPTS + '</select></td></tr>').join('') + '</tbody></table>';
+      '<td><select data-i="' + i + '" aria-label="' + esc(c) + ' 동작">' + actOpts(lab) + '</select></td></tr>').join('') + '</tbody></table>';
   $$('select[data-i]', box).forEach((sel) => {
     sel.value = st.map[st.classes[+sel.dataset.i]] || '';
     sel.addEventListener('change', () => {
@@ -1042,7 +1122,7 @@ function renderMap() {
     clearPlay(); showAction(a, signalFor(i), c, true);
   }));
 }
-function renderEx() { const el = $('#exCode'); if (el) el.textContent = genCode(mappedRows(L(S.cur))); }
+function renderEx() { const el = $('#exCode'); if (el) el.textContent = curLab().example || ''; }
 function renderTests() {
   const st = L(S.cur);
   const rows = mappedRows(st);
@@ -1412,11 +1492,101 @@ async function onCodeCheck() {
   else setMsg('#codeMsg', 'err', '아직 맞지 않아요: ' + run.rows.filter((r) => !r.ok).map((r) => '신호 “' + r.sig + '”(' + r.cls + ') → ' + ACT[r.action].label + ': ' + r.why).join(' / '));
 }
 
+/* ---------- 선생님 메일로 결과 보내기 ---------- */
+/* FormSubmit(formsubmit.co) 서비스를 이용해 서버 없이 메일을 보낸다.
+   ※ 맨 처음 한 번만, FormSubmit이 teacherEmail 주소로 '활성화(Activate)' 확인 메일을 보내요. 그 메일의 버튼을 눌러야 이후 결과가 도착해요. */
+let mailState = '', lastMail = null;
+function teamText(team) { return team.map((m) => m.sid + ' ' + m.name).join(', '); }
+function mailSubject(info) {
+  return '[AI×micro:bit] 실습 ' + info.lab.id + ' ' + info.lab.title + ' · ' + info.team.map((m) => m.name).join('·') + ' · ' + (info.res.pass ? '완성' : '미완성');
+}
+function mailBody(info, full) {
+  const { team, lab, st, res, code } = info;
+  const rows = mappedRows(st).map((r) => '  ' + r.sig + ' : ' + r.cls + ' → ' + ACT[r.action].label);
+  const L_ = [];
+  L_.push('팀원(' + team.length + '명): ' + teamText(team));
+  L_.push('실습: ' + lab.id + '. ' + lab.title);
+  L_.push('결과: ' + (res.pass ? '완성' : '미완성') + ' (' + res.okN + '/' + res.total + ' 충족)');
+  L_.push('제출 횟수: ' + st.sub.n + '회' + (st.sub.first ? ' · 완성까지 ' + st.sub.first + '번째' : ''));
+  L_.push('진짜 마이크로비트로 보낸 횟수: ' + (st.real || 0) + '회');
+  if (full) {
+    L_.push('모델 종류: ' + (TYPE_LABEL[st.modelType] || st.modelType || '-') + ' · 클래스 ' + (st.classes || []).length + '개');
+    L_.push('모델 링크: ' + (st.modelUrl || '-'));
+    L_.push('연결표:\n' + (rows.join('\n') || '  (없음)'));
+    L_.push('채점 항목:\n' + res.items.map((i) => '  ' + (i.ok ? '[O] ' : '[X] ') + i.label).join('\n'));
+    lab.notes.forEach((n) => L_.push('글쓰기 - ' + n.label + '\n  ' + String((st.notes && st.notes[n.id]) || '').trim().replace(/\n/g, '\n  ')));
+    L_.push('코드:\n' + code);
+  }
+  L_.push('결과 코드(교사 모드에 붙여 넣기): ' + encodeResult(buildResult(S)));
+  return L_.join('\n\n');
+}
+async function sendMail(info) {
+  try {
+    const r = await fetch('https://formsubmit.co/ajax/' + encodeURIComponent(CONFIG.teacherEmail), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({
+        _subject: mailSubject(info), _template: 'box', _captcha: 'false',
+        팀원: teamText(info.team), 실습: info.lab.id + '. ' + info.lab.title, 결과: info.res.pass ? '완성' : '미완성',
+        내용: mailBody(info, true)
+      })
+    });
+    if (!r.ok) return false;
+    const j = await r.json().catch(() => ({}));
+    return j.success === true || j.success === 'true';
+  } catch (e) { return false; }
+}
+/* ---------- 구글 시트에 붙여 넣기 ---------- */
+const SHEET_HEAD = ['제출시각', '학번', '이름', '모둠원', '실습', '완성', '충족/전체', '제출횟수', '완성까지(회)', '실기 전송(회)', '모델 종류', '모델 링크', '클래스', '연결표', '글쓰기 1', '글쓰기 2', '코드'];
+function tsvCell(v) {
+  const s = String(v == null ? '' : v);
+  return /[\t"\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+/* 팀원마다 한 줄씩. 구글 시트의 빈 줄 첫 칸을 클릭하고 붙여 넣으면 칸이 자동으로 나뉘어요 */
+function sheetRows(info) {
+  const { team, lab, st, res, code } = info;
+  const group = team.length > 1 ? team.map((m) => m.name).join('·') : '';
+  const notes = lab.notes.map((n) => String((st.notes && st.notes[n.id]) || '').trim());
+  const map = mappedRows(st).map((r) => r.sig + ':' + r.cls + '=' + ACT[r.action].label).join(' / ');
+  const when = new Date().toLocaleString('ko-KR');
+  return team.map((m) => [when, m.sid, m.name, group, lab.id + '. ' + lab.title, res.pass ? '완성' : '미완성', res.okN + '/' + res.total,
+    st.sub.n, st.sub.first || '', st.real || 0, TYPE_LABEL[st.modelType] || st.modelType || '', st.modelUrl || '',
+    (st.classes || []).join(', '), map, notes[0] || '', notes[1] || '', code]);
+}
+function sheetTSV(info) { return sheetRows(info).map((r) => r.map(tsvCell).join('\t')).join('\n'); }
+function renderSheetBox(info) {
+  const box = $('#mailBox'); if (!box) return;
+  if (!info || !CONFIG.sheetLink) { box.innerHTML = ''; return; }
+  box.innerHTML = '<div class="msg ok" style="margin-top:12px"><b>이제 선생님 구글 시트에 결과를 넣어요.</b><ol class="steps" style="margin:6px 0 0">' +
+    '<li>[결과 복사하기]를 눌러요.</li><li>[구글 시트 열기]를 눌러 시트에 들어가요.</li><li>표의 <b>맨 아래 빈 줄 첫 칸(A열)</b>을 클릭하고 <b>Ctrl+V</b>로 붙여 넣어요.</li></ol></div>' +
+    '<div class="row" style="margin-top:8px"><button type="button" class="btn sm led" id="btnCopySheet">결과 복사하기</button>' +
+    '<a class="btn sm" href="' + esc(CONFIG.sheetLink) + '" target="_blank" rel="noopener" style="text-decoration:none">구글 시트 열기</a>' +
+    '<button type="button" class="btn sm ghost" id="btnCopyHead" style="color:var(--ink)">(선생님용) 머리글 복사</button></div>';
+  $('#btnCopySheet').addEventListener('click', () => copyText(sheetTSV(info)));
+  $('#btnCopyHead').addEventListener('click', () => copyText(SHEET_HEAD.join('\t')));
+}
+
+function renderMailBox(info) {
+  const box = $('#mailBox'); if (!box) return;
+  if (!CONFIG.useFormSubmit) { renderSheetBox(info); return; }
+  if (!CONFIG.teacherEmail || !info) { box.innerHTML = ''; return; }
+  const msg = mailState === 'sending' ? '선생님 메일로 결과를 보내는 중이에요…'
+    : mailState === 'ok' ? '✔ 선생님 메일로 결과를 보냈어요.'
+    : '메일 자동 전송에 실패했어요. 아래 버튼으로 직접 보내 주세요.';
+  const mailto = 'mailto:' + CONFIG.teacherEmail + '?subject=' + encodeURIComponent(mailSubject(info)) + '&body=' + encodeURIComponent(mailBody(info, false));
+  box.innerHTML = '<div class="msg ' + (mailState === 'ok' ? 'ok' : mailState === 'fail' ? 'err' : '') + '" style="margin-top:12px">' + esc(msg) + '</div>' +
+    (mailState === 'fail' ? '<div class="row" style="margin-top:8px"><a class="btn sm" href="' + esc(mailto) + '" style="text-decoration:none">메일로 직접 보내기</a>' +
+      '<button type="button" class="btn sm ghost" id="btnCopyMail" style="color:var(--ink)">전체 내용 복사</button></div>' : '');
+  const cb = $('#btnCopyMail'); if (cb) cb.addEventListener('click', () => copyText(mailBody(info, true)));
+}
+
 let grading = false;
 async function onSubmit() {
   if (grading) return;
   const sid = S.student.sid.trim(), name = S.student.name.trim();
-  if (!sid || !name) { toast('위쪽에 학번과 이름을 먼저 입력해 주세요.'); $(sid ? '#inName' : '#inSid').focus(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+  if (!sid || !name) { toast('위쪽에 팀원 1의 학번과 이름을 먼저 입력해 주세요.'); $(sid ? '#mName0' : '#mSid0').focus(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+  const hm = halfMember();
+  if (hm >= 0) { toast('팀원 ' + (hm + 2) + '의 학번과 이름을 둘 다 쓰거나, 둘 다 비워 주세요.'); $('#mSid' + (hm + 1)).focus(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
   const lab = curLab(), st = L(lab.id), btn = $('#btnSubmit');
   grading = true; btn.disabled = true; btn.textContent = '내 코드를 실행해서 채점하는 중…';
   try {
@@ -1429,9 +1599,21 @@ async function onSubmit() {
     st.sub.last = { pass: res.pass, okN: res.okN, total: res.total };
     save(); renderDash(); renderTabs();
     if (S.cur === lab.id) renderResult(res);
+    const team = teamList();
+    const mailInfo = { team, lab, st, res, code };
+    lastMail = mailInfo;
+    if (CONFIG.teacherEmail && CONFIG.useFormSubmit) {
+      sendMail(mailInfo).then((ok) => {
+        toast(ok ? '선생님 메일로 결과를 보냈어요.' : '메일 전송에 실패했어요. 아래 [메일로 직접 보내기]를 써 보세요.');
+        mailState = ok ? 'ok' : 'fail';
+        if (S.cur === lab.id) renderMailBox(mailInfo);
+      });
+      mailState = 'sending'; lastMail = mailInfo;
+    }
+    if (S.cur === lab.id) renderMailBox(mailInfo);
     if (CONFIG.sheetUrl) {
       const payload = {
-        sid, name, lab: lab.id, title: lab.title, pass: res.pass ? 1 : 0, score: res.okN + '/' + res.total, n: st.sub.n, first: st.sub.first,
+        sid, name, members: team, lab: lab.id, title: lab.title, pass: res.pass ? 1 : 0, score: res.okN + '/' + res.total, n: st.sub.n, first: st.sub.first,
         real: st.real || 0, type: st.modelType, url: st.modelUrl, classes: st.classes, map: mappedRows(st).map((r) => r.sig + ':' + r.cls + '=' + ACT[r.action].label),
         code, notes: st.notes, ts: Date.now()
       };
@@ -1446,6 +1628,7 @@ async function onSubmit() {
 function renderResult(res) {
   const st = L(S.cur), box = $('#resultBox'), my = $('#myCodeBox');
   if (!st.sub.n) { box.innerHTML = ''; my.innerHTML = ''; return; }
+  if (lastMail && lastMail.lab.id === S.cur && !res) renderMailBox(lastMail);
   const last = st.sub.last;
   let html = '<div class="metrics"><div class="stat"><span>이 실습 제출 횟수</span><b>' + st.sub.n + '회</b></div>' +
     '<div class="stat"><span>완성까지</span><b>' + (st.sub.first ? st.sub.first + '번째에 완성' : '아직 미완성') + '</b></div></div>';
@@ -1458,7 +1641,7 @@ function renderResult(res) {
   } else {
     html += '<p class="small">마지막 제출: ' + last.okN + '/' + last.total + '개 충족. 고친 뒤 다시 제출하면 자세한 안내가 나와요.</p>';
   }
-  if (CONFIG.sheetUrl && res) html += '<p class="small" style="margin-top:8px">결과를 선생님 시트로 보냈어요.</p>';
+  if (CONFIG.sheetUrl && res) html += '<p class="small" style="margin-top:8px">결과를 선생님께 전송했어요. (선생님 시트·메일에 도착해요)</p>';
   box.innerHTML = html;
   const code = encodeResult(buildResult(S));
   my.innerHTML = '<h3 style="font-size:.98rem;margin-top:16px">내 결과 코드</h3><p class="small">선생님이 알려 주신 방법으로 이 코드를 내면 제출이 끝나요. 실습을 더 제출하면 코드가 새로 만들어져요.</p>' +
@@ -1517,21 +1700,19 @@ function collect(text) {
   });
 }
 function drawTable() {
-  const rows = resultsToRows(tList), skip = 13;
+  const rows = resultsToRows(tList), skip = 14;
   const head = CSV_HEAD.filter((h, i) => i !== skip);
-  $('#tInfo').textContent = '학생 ' + tList.length + '명 · 기록 ' + rows.length + '건' + (tBad.length ? ' · 읽지 못한 코드 ' + tBad.length + '건 (' + tBad.slice(0, 3).join(', ') + ')' : '');
+  $('#tInfo').textContent = '제출 ' + tList.length + '팀(명) · 기록 ' + rows.length + '건' + (tBad.length ? ' · 읽지 못한 코드 ' + tBad.length + '건 (' + tBad.slice(0, 3).join(', ') + ')' : '');
   $('#tTable').innerHTML = rows.length
     ? '<table class="res"><thead><tr>' + head.map((h) => '<th>' + h + '</th>').join('') + '</tr></thead><tbody>' +
-      rows.map((r) => '<tr>' + r.filter((c, i) => i !== skip).map((c, i) => '<td class="' + (i === 3 && c === '완성' ? 'okc' : '') + '" title="' + esc(c) + '">' + esc(c) + '</td>').join('') + '</tr>').join('') + '</tbody></table>'
+      rows.map((r) => '<tr>' + r.filter((c, i) => i !== skip).map((c, i) => '<td class="' + (i === 4 && c === '완성' ? 'okc' : '') + '" title="' + esc(c) + '">' + esc(c) + '</td>').join('') + '</tr>').join('') + '</tbody></table>'
     : '<div class="empty">표시할 결과가 없어요.</div>';
 }
 
 /* ---------- 시작 ---------- */
 function init() {
   buildLogo();
-  $('#inSid').value = S.student.sid; $('#inName').value = S.student.name;
-  $('#inSid').addEventListener('input', (e) => { S.student.sid = e.target.value; save(); });
-  $('#inName').addEventListener('input', (e) => { S.student.name = e.target.value; save(); });
+  buildMembers();
   $('#tabs').addEventListener('click', (e) => {
     const b = e.target.closest('.tab'); if (!b) return;
     S.cur = +b.dataset.id; save(); renderTabs(); renderLab();
