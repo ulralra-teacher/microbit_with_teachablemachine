@@ -241,7 +241,7 @@ footer{padding:26px 0 40px;color:var(--mute);font-size:.85rem}
    ============================================================ */
 const CONFIG = {
   teacherPassword: '1234',     // 교사 모드 비밀번호 — 꼭 바꿔서 배포하세요
-  sheetUrl: 'https://script.google.com/macros/s/AKfycbzxYi2OAZsotg5PlS2XjynL38wrstwvyCmVXAVOVNFdEZVJ0n0Z5Z_XQs8Xx6QkFjGe/exec',                // (선택) 구글 앱스크립트 웹앱 주소(비우면 서버로 보내지 않음)
+  sheetUrl: 'https://script.google.com/macros/s/AKfycbwecA-kvZQ3ksx5fubNwnOESJ8ejv8qUvjsxP9452ToYrfqbMFqq7xgRUa3tLdJroJu/exec',                // (선택) 구글 앱스크립트 웹앱 주소(비우면 서버로 보내지 않음)
   teacherEmail: 'iulralra@naver.com',   // 제출할 때마다 실습 결과를 이 주소로 메일 전송 (비우면 전송 안 함)
   sheetLink: 'https://docs.google.com/spreadsheets/d/1ssQRtjWPoCVK1HhligzjFJjPVppdY1Yp8ft9skZn5Bc/edit?usp=sharing',  // 학생이 결과를 붙여 넣을 구글 시트
   useFormSubmit: false,        // true: FormSubmit 서비스로 메일 전송(학교망에서 막히는 경우가 많아 기본 꺼 둠)
@@ -1017,7 +1017,7 @@ function project4HTML(lab, st) {
       '<p class="small" id="'+q.id+'_hint" style="margin:5px 0 8px">'+esc(q.hint)+'</p>' +
       '<textarea id="'+q.id+'" rows="5" maxlength="6000" data-project4="'+q.id+'" aria-describedby="'+q.id+'_hint" placeholder="우리 모둠의 생각과 실제 진행 내용을 적어 주세요.">'+esc((st.notes && st.notes[q.id]) || '')+'</textarea>' +
       '<details class="ex"><summary>생각을 돕는 구체적인 예시 보기</summary><p class="small" style="margin-top:8px;white-space:pre-wrap;overflow-wrap:anywhere">'+esc(q.example)+'</p></details></div>').join('') +
-    '<p class="small">※ 얼굴·이름·목소리 등 개인정보는 되도록 수집하지 않고, 필요하면 선생님과 동의 절차를 확인하세요. 위험한 장치 대신 LED·소리로 안전하게 시연해도 됩니다. 결과 복사 시 탐구 기록은 기존 ‘글쓰기 2’ 칸에 함께 담깁니다.</p></article>';
+    '<p class="small">※ 얼굴·이름·목소리 등 개인정보는 되도록 수집하지 않고, 필요하면 선생님과 동의 절차를 확인하세요. 위험한 장치 대신 LED·소리로 안전하게 시연해도 됩니다. 아래 ‘6. 생각쓰기’까지 작성하면 탐구 질문 1~5와 함께 하나의 ‘글쓰기’ 칸에 번호순으로 저장됩니다.</p></article>';
 }
 
 function labHTML(lab, st) {
@@ -1082,7 +1082,7 @@ function labHTML(lab, st) {
         '<button type="button" class="btn sm" id="btnSerial">마이크로비트 연결</button>' +
         '<div class="small" id="serHelp" style="margin-top:8px"></div>' +
       '</div></div></article>' +
-    '<article class="card"><h3><span class="n">5</span>생각 쓰기</h3>' + notes + '</article>' +
+    '<article class="card"><h3><span class="n">6</span>생각쓰기</h3><p class="small">위쪽 탐구 질문 1~5의 답안에 이어, 실습하면서 생각한 내용을 정리하세요. 제출하면 앞선 답안과 함께 번호순으로 저장됩니다.</p>' + notes + '</article>' +
     '<article class="card"><h3><span class="n">6</span>결과 제출 · 결과 체크하기</h3>' +
       '<p class="lead">제출하면 연결표의 신호마다 내 코드를 실제로 실행해서 확인해요. 조건을 모두 채울 때까지 여러 번 제출할 수 있고, 제출할 때마다 횟수가 쌓여요. 구글시트 연결이 설정되어 있으면 결과를 자동 저장하고, 서버에서 저장 완료 응답을 받은 뒤 완료를 표시해요. 자동 저장이 실패하면 아래 <b>[결과 복사하기]</b>로 수동 제출하세요. 팀원 모두의 이름으로 기록돼요.</p>' +
       '<button type="button" class="btn led" id="btnSubmit">결과 제출 · 결과 체크하기</button>' +
@@ -1585,7 +1585,7 @@ async function sendMail(info) {
   } catch (e) { return false; }
 }
 /* ---------- 구글 시트에 붙여 넣기 ---------- */
-const SHEET_HEAD = ['제출시각', '학번', '이름', '모둠원', '실습', '완성', '충족/전체', '제출횟수', '완성까지(회)', '실기 전송(회)', '모델 종류', '모델 링크', '클래스', '연결표', '글쓰기 1', '글쓰기 2', '코드'];
+const SHEET_HEAD = ['제출시각', '학번', '이름', '모둠원', '실습', '완성', '충족/전체', '제출횟수', '완성까지(회)', '실기 전송(회)', '모델 종류', '모델 링크', '클래스', '연결표', '글쓰기', '코드'];
 function tsvCell(v) {
   const s = String(v == null ? '' : v);
   return /[\t"\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
@@ -1594,13 +1594,13 @@ function tsvCell(v) {
 function sheetRows(info) {
   const { team, lab, st, res, code } = info;
   const group = team.length > 1 ? team.map((m) => m.name).join('·') : '';
-  const notes = lab.notes.map((n) => String((st.notes && st.notes[n.id]) || '').trim());
-  if (lab.id === 4) notes[1] = (notes[1] || '') + '\n\n[종합 프로젝트 탐구 기록]\n' + project4Text(st);
+  const reflection = lab.notes.map((n,i) => '6.' + (i+1) + ' ' + n.label + '\n' + String((st.notes && st.notes[n.id]) || '').trim()).join('\n\n');
+  const writing = lab.id === 4 ? project4Text(st) + '\n\n6. 생각쓰기\n' + reflection : lab.notes.map((n,i) => (i+1) + '. ' + n.label + '\n' + String((st.notes && st.notes[n.id]) || '').trim()).join('\n\n');
   const map = mappedRows(st).map((r) => r.sig + ':' + r.cls + '=' + ACT[r.action].label).join(' / ');
   const when = new Date().toLocaleString('ko-KR');
   return team.map((m) => [when, m.sid, m.name, group, lab.id + '. ' + lab.title, res.pass ? '완성' : '미완성', res.okN + '/' + res.total,
     st.sub.n, st.sub.first || '', st.real || 0, TYPE_LABEL[st.modelType] || st.modelType || '', st.modelUrl || '',
-    (st.classes || []).join(', '), map, notes[0] || '', notes[1] || '', code]);
+    (st.classes || []).join(', '), map, writing, code]);
 }
 function sheetTSV(info) { return sheetRows(info).map((r) => r.map(tsvCell).join('\t')).join('\n'); }
 function renderSheetBox() { const box = $('#mailBox'); if (box) box.innerHTML = ''; }
