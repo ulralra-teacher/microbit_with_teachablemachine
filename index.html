@@ -1,6 +1,5 @@
 <!doctype html>
-<html lang="ko">
-<head>
+<html lang="ko"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AI × micro:bit 실습 및 수행평가</title>
@@ -186,13 +185,13 @@ footer{padding:26px 0 40px;color:var(--mute);font-size:.85rem}
 @media (max-width:520px){.tabs{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr 1fr}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
-<script type="application/json" id="deploymentSettings">{}</script>
+<script type="application/json" id="deploymentSettings">{"sheetLink":"https://docs.google.com/spreadsheets/d/1ssQRtjWPoCVK1HhligzjFJjPVppdY1Yp8ft9skZn5Bc/edit?usp=sharing","sheetUrl":"https://script.google.com/macros/s/AKfycbwecA-kvZQ3ksx5fubNwnOESJ8ejv8qUvjsxP9452ToYrfqbMFqq7xgRUa3tLdJroJu/exec"}</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
     <div class="brand">
-      <div class="mini" id="logoLeds" aria-hidden="true"></div>
+      <div class="mini" id="logoLeds" aria-hidden="true"><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class="on"></i><i class=""></i><i class="on"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class="on"></i><i class=""></i><i class=""></i><i class=""></i><i class="on"></i><i class=""></i><i class="on"></i><i class="on"></i><i class="on"></i><i class=""></i></div>
       <div>
         <h1>AI × micro:bit 실습 및 수행평가</h1>
         <p>내가 학습시킨 인공지능으로 마이크로비트를 움직여요</p>
@@ -209,9 +208,9 @@ footer{padding:26px 0 40px;color:var(--mute);font-size:.85rem}
   <section class="dash" aria-label="진행 현황">
     <div class="card">
       <div class="row" style="justify-content:space-between;align-items:baseline">
-        <h3>실습 진행 현황</h3><span class="pct" id="pct">0%</span>
+        <h3>실습 진행 현황</h3><span class="pct" id="pct">25%</span>
       </div>
-      <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="pbar"><b id="pfill"></b></div>
+      <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="pbar" aria-valuenow="25"><b id="pfill" style="width: 25%;"></b></div>
       <div class="stats">
         <div class="stat"><span>전체 실습</span><b id="stAll">4</b></div>
         <div class="stat"><span>완성한 실습</span><b id="stDone">0</b></div>
@@ -234,7 +233,7 @@ footer{padding:26px 0 40px;color:var(--mute);font-size:.85rem}
 </footer>
 
 <dialog id="dlg"></dialog>
-<div id="toast" role="status" aria-live="polite"></div>
+<div id="toast" role="status" aria-live="polite" class="">연결 설정을 적용했습니다. 학생 배포 시 설정 포함 HTML을 내려받으세요.</div>
 <script>
 'use strict';
 /* ============================================================
@@ -1845,5 +1844,6 @@ function init() {
 }
 init();
 </script>
-</body>
-</html>
+
+
+</body></html>
