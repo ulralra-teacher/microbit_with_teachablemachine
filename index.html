@@ -186,6 +186,7 @@ footer{padding:26px 0 40px;color:var(--mute);font-size:.85rem}
 @media (max-width:520px){.tabs{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr 1fr}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
+<script type="application/json" id="deploymentSettings">{}</script>
 </head>
 <body>
 <header class="top">
@@ -218,7 +219,7 @@ footer{padding:26px 0 40px;color:var(--mute);font-size:.85rem}
       </div>
     </div>
     <div class="card">
-      <h3>모둠 정보 <span class="small" style="font-weight:400"></span></h3>
+      <h3 id="identityHeading">개인 정보</h3>
       <p class="small" style="margin:2px 0 10px">학번과 이름은 이 컴퓨터에 자동으로 저장돼요.</p>
       <div id="memberBox"></div>
     </div>
@@ -240,8 +241,8 @@ footer{padding:26px 0 40px;color:var(--mute);font-size:.85rem}
    설정 (교사가 수정하는 부분)
    ============================================================ */
 const CONFIG = {
-  teacherPassword: '1234',     // 교사 모드 비밀번호 — 꼭 바꿔서 배포하세요
-  sheetUrl: 'https://script.google.com/macros/s/AKfycbwecA-kvZQ3ksx5fubNwnOESJ8ejv8qUvjsxP9452ToYrfqbMFqq7xgRUa3tLdJroJu/exec',                // (선택) 구글 앱스크립트 웹앱 주소(비우면 서버로 보내지 않음)
+  teacherPassword: '0543',     // 교사 모드 비밀번호 — 꼭 바꿔서 배포하세요
+  sheetUrl: '',                // (선택) 구글 앱스크립트 웹앱 주소(비우면 서버로 보내지 않음)
   teacherEmail: 'iulralra@naver.com',   // 제출할 때마다 실습 결과를 이 주소로 메일 전송 (비우면 전송 안 함)
   sheetLink: 'https://docs.google.com/spreadsheets/d/1ssQRtjWPoCVK1HhligzjFJjPVppdY1Yp8ft9skZn5Bc/edit?usp=sharing',  // 학생이 결과를 붙여 넣을 구글 시트
   useFormSubmit: false,        // true: FormSubmit 서비스로 메일 전송(학교망에서 막히는 경우가 많아 기본 꺼 둠)
@@ -691,7 +692,7 @@ function buildResult(S) {
       a: lab.notes.map((n) => String((st.notes && st.notes[n.id]) || '').trim().slice(0, 400))
     };
   });
-  const team = teamList();
+  const team = teamList(lab.id);
   const extra = team.filter((m) => !(m.sid === String(S.student.sid).trim() && m.name === String(S.student.name).trim()));
   return { v: 1, sid: S.student.sid, name: S.student.name, mem: extra, ts: Date.now(), labs };
 }
@@ -886,12 +887,13 @@ function loadState() {
 }
 let S = loadState();
 /* 모둠 전체(팀원 1 + 함께하는 친구) 중 학번과 이름이 모두 채워진 사람 */
-function teamList() {
-  const all = [S.student].concat((S.members || []).slice(0, Math.max(0, CONFIG.maxMembers - 1)));
+function teamList(labId = S.cur) {
+  const all = [S.student].concat(labId === 4 ? (S.members || []).slice(0, Math.max(0, CONFIG.maxMembers - 1)) : []);
   return all.map((m) => ({ sid: String((m && m.sid) || '').trim(), name: String((m && m.name) || '').trim() })).filter((m) => m.sid && m.name);
 }
 /* 한쪽(학번 또는 이름)만 쓴 팀원이 있는지 */
 function halfMember() {
+  if (S.cur !== 4) return -1;
   const all = (S.members || []).slice(0, Math.max(0, CONFIG.maxMembers - 1));
   return all.findIndex((m) => m && ((String(m.sid || '').trim() && !String(m.name || '').trim()) || (!String(m.sid || '').trim() && String(m.name || '').trim())));
 }
@@ -925,12 +927,14 @@ function setMsg(sel, kind, text) {
 
 /* ---------- 모둠(팀원) 입력칸 ---------- */
 function buildMembers() {
-  const n = Math.max(1, CONFIG.maxMembers), box = $('#memberBox');
+  const grouped = S.cur === 4;
+  $('#identityHeading').textContent = grouped ? '모둠 정보' : '개인 정보';
+  const n = grouped ? Math.max(1, CONFIG.maxMembers) : 1, box = $('#memberBox');
   let html = '';
   for (let i = 0; i < n; i++) {
     const m = i === 0 ? S.student : (S.members[i - 1] || { sid: '', name: '' });
     html += '<div class="row" style="margin-bottom:6px;align-items:flex-end">' +
-      '<div class="field" style="flex:0 0 52px;font-weight:700;padding-bottom:9px">' + (i === 0 ? '팀원 1' : '팀원 ' + (i + 1)) + '</div>' +
+      '<div class="field" style="flex:0 0 52px;font-weight:700;padding-bottom:9px">' + (grouped ? '팀원 ' + (i + 1) : '학생') + '</div>' +
       '<div class="field"><label for="mSid' + i + '">학번' + (i === 0 ? '' : ' (선택)') + '</label><input type="text" id="mSid' + i + '" data-m="' + i + '" data-f="sid" inputmode="numeric" autocomplete="off" placeholder="예) 10101" value="' + esc(m.sid || '') + '"></div>' +
       '<div class="field"><label for="mName' + i + '">이름' + (i === 0 ? '' : ' (선택)') + '</label><input type="text" id="mName' + i + '" data-m="' + i + '" data-f="name" autocomplete="off" placeholder="예) 홍길동" value="' + esc(m.name || '') + '"></div></div>';
   }
@@ -1008,11 +1012,19 @@ function project4RubricHTML(lab) {
     '</tbody></table></div><div class="msg"><strong>평가할 때 함께 확인해요</strong><ul style="margin:6px 0;padding-left:20px"><li>필수 요소는 문장을 적은 것만이 아니라 설명·제출 자료·시연이 서로 맞고 타당할 때 충족으로 봅니다. 최상위 행의 필수 요소를 모두 충족하면 해당 영역 만점입니다.</li><li>문장 길이·예쁜 꾸밈·데이터 개수·모델의 정답률만으로 점수를 정하지 않습니다. 테스트에서 실패해도 실제 기록, 원인 분석과 개선 과정은 평가받을 수 있습니다.</li><li>미구현·미실시는 솔직하게 표시하세요. 계획은 계획으로 평가하며, 실제 구현·테스트·재테스트를 했다는 증거를 대신하지 않습니다. 예시의 가상 수치를 실제 결과처럼 쓰면 안 됩니다.</li><li>마이크로비트 영역의 ‘예외 처리’는 안전한 동작 구현 또는 미지원 동작의 한계를 실제로 확인하고 대안을 설명한 경우 인정합니다.</li><li>모둠 산출물과 함께 각자의 역할 기록·설명으로 개인별 이해와 참여를 확인합니다. 장비 고장 등 학생 책임이 아닌 제약은 교사가 제공하는 가상 실행·기록 등 동등한 대체 증거로 평가합니다.</li></ul></div></article>';
 }
 
+const SDG_TOPIC_HINTS = [["빈곤 퇴치", [["나눔 물품 분류 도우미", "학교 나눔 행사에서 물품을 쉽게 정리하기", "학용품·책·의류 사진", "종류별 A·B·C 신호로 서로 다른 LED 표시"], ["생활 물품 재사용 안내", "버리기 전 재사용할 물품을 구분하기", "빈 상자·깨끗한 용기·기타 사진", "재사용 후보를 LED로 안내하고 실제 상태는 사람이 확인"], ["나눔 물품 요청판", "필요한 물품을 말 대신 카드로 요청하기", "필기구·공책·기타 그림 카드", "물품별 LED 신호로 담당자에게 알리기"]]], ["기아 종식", [["잔반 줄이기 돌아보기", "먹을 만큼 받는 습관을 돌아보기", "내용물이 없는·조금 있는·많이 있는 모형 접시 사진", "잔반 양 범주를 LED로 표시하며 무게 측정은 아님"], ["학교 텃밭 관찰 도우미", "식물의 변화를 관찰하고 기록하기", "흙 표면이 마른·젖은·판단 어려운 사진", "물주기 확인 표시만 하고 수분량은 직접 확인"], ["식품 보관 위치 안내", "교실 체험활동에서 식품을 알맞게 정리하기", "교사가 정한 냉장·실온·기타 보관 그림 카드", "보관 위치를 LED로 안내하며 실제 포장 안내를 우선"]]], ["건강과 웰빙", [["스트레칭 자세 안내", "오래 앉아 있는 습관을 바꾸기", "양팔 들기·옆으로 펴기·기본 자세 이미지 또는 포즈", "자세별 그림 표시로 쉬는 시간 운동 돕기"], ["손 씻기 순서 연습", "손 씻기 동작을 기억하기", "손바닥·손등·손가락 사이 동작 사진", "연습 단계 LED 표시로 안내하며 위생 상태 판정은 아님"], ["큰 소리 줄이기 도우미", "교실의 지나치게 큰 소리를 돌아보기", "조용함·대화·큰 소리 음성 없는 환경음", "큰 소리에 주의 LED 표시, 개인 식별·녹음 금지"]]], ["양질의 교육", [["학습 준비물 분류", "준비물 정리를 쉽게 하기", "연필·지우개·자 사진", "분류 결과 LED로 보이며 실제 누락 확인은 사람이 수행"], ["도움 요청 카드", "수업 중 질문 의사를 편하게 표현하기", "질문·완료·천천히 그림 카드", "카드별 LED 신호로 학습 상태 전달"], ["읽기 활동 선택 도우미", "독서 활동을 쉽게 선택하기", "이야기·과학·예술 표지 모형 카드", "각 범주에 맞는 LED를 표시하며 내용 전체를 이해하는 AI는 아님"]]], ["성평등", [["역할 균등 순환 안내", "모둠 역할이 특정 학생에게 고정되지 않도록 돕기", "진행·기록·정리 역할 카드", "역할별 LED를 표시하고 순환 여부는 모둠이 기록"], ["누구나 쓰는 활동 선택판", "성별 고정관념 없이 원하는 활동 고르기", "코딩·만들기·발표 활동 카드", "선택한 활동을 LED로 표시, 얼굴·성별 추정 금지"], ["공평한 발언 순서 신호", "모든 학생에게 발표 기회 주기", "발언 요청·경청·종료 손동작", "상태별 LED 표시, 실제 순서와 시간은 진행자가 관리"]]], ["깨끗한 물과 위생", [["수도 잠금 연습판", "손 씻은 뒤 수도를 잠그는 습관 기르기", "열림·닫힘·확인 필요 수도꼭지 모형 사진", "열림일 때 주의 LED, 실제 급수장치 제어 금지"], ["물 사용 습관 퀴즈판", "물을 아끼는 행동 구분하기", "양치컵 사용·계속 흐르는 물·기타 상황 카드", "절수 행동별 표시, 물 사용량을 실제 측정한 것은 아님"], ["손 씻는 곳 정리 안내", "세면대 주변 물건을 정리하기", "비누·수건·기타 물품 사진", "물품별 보관 위치 LED 안내, 전자기기는 물에서 멀리 두기"]]], ["모두를 위한 깨끗한 에너지", [["빈 모형 교실 조명 알림", "사용하지 않는 공간의 조명 낭비 줄이기", "사람 없음·있음·판단 어려움의 인형 교실 사진", "빈 교실에 절전 LED만 표시, 실제 전등 제어 금지"], ["절전 행동 카드 도우미", "쉬운 절전 행동 실천하기", "조명 끄기·대기전력 확인·자연광 활용 카드", "행동별 LED 안내, 콘센트 조작은 성인만 수행"], ["모형 창가 밝기 분류", "자연광을 활용할 때를 생각하기", "밝은·어두운·중간 모형 교실 사진", "절전 검토 LED 표시 후 밝기 센서 방식과 비교"]]], ["양질의 일자리와 경제성장", [["안전 작업 준비 연습", "만들기 활동의 준비물 확인하기", "보안경·앞치마·기타 보호용품 사진", "해당 준비물 LED 안내, 착용·안전 보장 판정은 아님"], ["학급 장터 물품 분류", "장터 정리 업무를 편리하게 하기", "책·문구·공예품 사진", "분류별 LED 표시로 진열 위치 안내"], ["작업 휴식 신호판", "만들기 활동 중 휴식 의사 전달하기", "작업·휴식 요청·도움 요청 카드", "상태별 LED로 주변에 전달"]]], ["산업·혁신과 사회기반시설", [["모형 도로 상태 분류", "보도 파손 신고 과정을 이해하기", "정상·균열·장애물 도로 모형 사진", "점검 필요 LED 표시, 실제 보행 안전 판정 금지"], ["부품 분류 보조", "작은 제작 부품을 쉽게 정리하기", "블록·종이 부품·전선 사진", "부품별 LED로 분류함 안내"], ["시설 점검 카드 전달", "고장 신고를 명확히 전달하기", "조명·책상·문 점검 그림 카드", "시설별 LED 표시, 실제 고장 판정은 교사가 수행"]]], ["불평등 감소", [["말 대신 그림 요청판", "말로 요청하기 어려운 상황에서 의사 표현 돕기", "물·도움·휴식 그림 카드", "요청별 LED 표시, 당사자가 원하는 방식인지 확인"], ["색과 모양 함께 안내", "색만으로 구분하는 안내의 불편 줄이기", "모양이 다른 세 안내 카드", "서로 다른 LED 모양으로 출력, 색만 사용하지 않기"], ["손동작 선택 입력판", "키보드 대신 선택 가능한 입력 방법 만들기", "주먹·손바닥·손가락 펼침 동작", "선택별 LED 표시, 참여 학생에게 편한 동작으로 변경"]]], ["지속가능한 도시와 공동체", [["통로 정리 도우미", "교실 통로의 장애물을 줄이기", "정돈·가방 놓임·상자 놓임 모형 통로 사진", "정리 필요 LED 표시, 실제 대피 안전 판단 금지"], ["공유 물품 제자리 안내", "공용 도구를 쉽게 반납하기", "가위·풀·자 사진", "반납 위치별 LED 표시"], ["교실 소리 약속판", "함께 쓰는 공간의 소음 줄이기", "조용함·보통 소리·큰 소리 환경음", "소리 상태 LED 표시, 친구별 평가·감시에 쓰지 않기"]]], ["책임 있는 소비와 생산", [["분리배출 도우미", "수업용 깨끗한 표본의 분류 돕기", "종이·플라스틱·기타 사진", "분류별 LED 표시, 실제 배출은 지역 기준 확인"], ["일회용품 줄이기", "다회용품 사용을 돌아보기", "텀블러·일회용 컵·기타 사진", "물품별 LED를 표시하며 개인을 비교·평가하지 않기"], ["이면지 분류 도우미", "사용 가능한 종이를 다시 쓰기", "빈 종이·한쪽 사용·양쪽 사용 표본 사진", "재사용 후보 LED 표시, 개인정보 문서는 촬영하지 않기"]]], ["기후변화 대응", [["저탄소 이동 선택판", "가까운 거리의 이동 방법 생각하기", "걷기·자전거·대중교통 카드", "선택별 LED 표시, 카드만으로 탄소량 계산은 하지 않기"], ["기후 실천 약속판", "학급 기후 행동을 눈에 띄게 알리기", "절전·재사용·음식 남기지 않기 카드", "선택한 약속을 LED로 표시"], ["기후 자료 정리 도우미", "기후 학습 자료를 주제별로 정리하기", "폭염·집중호우·가뭄 그림 카드", "주제별 LED 표시, 실제 재난 예측·경보 장치가 아님"]]], ["해양생태계 보전", [["모형 해변 쓰레기 분류", "바다로 가는 쓰레기 문제 생각하기", "페트병·비닐·자연물 모형 사진", "분류별 LED 안내, 실제 오염물은 만지지 않기"], ["일회용 빨대 줄이기", "불필요한 일회용 사용 줄이기", "빨대·다회용 컵·기타 사진", "선택별 LED로 대안 안내, 필요한 사용을 비난하지 않기"], ["해양 보호 행동 안내", "바다를 지키는 생활 행동 찾기", "쓰레기 되가져오기·다회용품·관찰 거리 지키기 카드", "행동별 LED 안내, 생물을 채집하지 않기"]]], ["육상생태계 보전", [["학교 식물 관찰 기록판", "식물의 다양한 모습을 알아보기", "교사가 정한 세 종류의 잎 사진", "종류별 LED 표시, 실제 종 동정·독성 판단 금지"], ["화단 배려 행동판", "식물을 밟지 않는 행동 익히기", "정해진 길 걷기·관찰하기·물주기 카드", "행동별 LED 안내, 물주기는 교사 확인 후 수행"], ["곤충 서식지 보호 학습", "곤충을 해치지 않고 관찰하기", "잎 아래·흙 주변·나무 주변 서식처 그림 카드", "서식처별 LED 안내, 실제 곤충 포획·접촉 금지"]]], ["평화·정의와 제도", [["대화 약속 신호판", "모둠 대화의 갈등을 줄이기", "말하기·경청·잠깐 멈춤 카드", "상태별 LED 표시, 감정·거짓말 추정 금지"], ["투표 선택 전달 도우미", "학급 의견 선택을 명확히 전달하기", "찬성·반대·보류 카드", "선택 LED 표시만 구현, 공식 선거·비밀투표에는 사용하지 않기"], ["안전한 도움 요청판", "불편할 때 교사에게 도움 요청하기", "도움 요청·쉬고 싶음·괜찮음 카드", "약속한 LED로 전달, 실제 긴급 신고를 대신하지 않기"]]], ["목표를 위한 협력", [["모둠 협력 상태판", "모둠 간 도움 주고받기", "진행 중·도움 필요·공유 가능 카드", "상태별 LED로 다른 모둠에 전달"], ["공동 준비물 나눔판", "모둠 사이의 준비물 공유하기", "풀·자·색연필 사진", "물품별 LED 표시, 실제 수량과 대여 기록은 별도 관리"], ["환경 캠페인 역할 안내", "공동 캠페인 역할을 나누기", "홍보·기록·정리 역할 카드", "역할별 LED 표시로 협력 시작 돕기"]]]];
+function sdgTopicHintsHTML() {
+  return '<section class="msg" id="sdgTopicHints"><h4 style="margin:0 0 10px">🌏 SDGs로 생활 문제 찾아보기</h4><p class="small">목표별 제목을 참고해 우리 주변에서 해결하고 싶은 문제를 정해 보세요. 예시를 그대로 따라 하기보다 우리 모둠의 문제로 바꾸어 보세요.</p>' + SDG_TOPIC_HINTS.map((g,i) => '<div style="padding:10px 0;border-bottom:1px solid var(--line)"><b>목표 '+(i+1)+'. '+esc(g[0])+'</b><ul style="margin:6px 0;padding-left:22px">'+g[1].map(v=>'<li>'+esc(v[0])+'</li>').join('')+'</ul></div>').join('')+'</section>';
+}
+function teacherSDGDetailsHTML() {
+  return SDG_TOPIC_HINTS.map((g,i)=>'<section style="margin:22px 0"><h3>목표 '+(i+1)+'. '+esc(g[0])+'</h3>'+g[1].map((v,j)=>'<article style="margin:12px 0;padding:14px;border:1px solid var(--line);border-radius:12px"><h4 style="margin:0 0 10px">'+(i+1)+'-'+(j+1)+'. '+esc(v[0])+'</h4><p><b>연결 목표:</b> SDG '+(i+1)+' '+esc(g[0])+'</p><p><b>생활 문제·해결 목표:</b> '+esc(v[1])+'</p><p><b>모을 데이터·클래스:</b> '+esc(v[2])+'</p><p><b>마이크로비트 동작·주의:</b> '+esc(v[3])+'</p><p class="small"><b>지도 질문:</b> 실제로 누가 언제 불편한가요? 데이터의 이름과 기준을 어떻게 정할까요? AI 판단이 틀리거나 신호가 오지 않으면 어떻게 할까요?</p><p class="small"><b>수집·검증 지도:</b> 배경·방향·밝기 등 조건을 바꾸고 클래스별 양을 균형 있게 수집합니다. 학습에 사용하지 않은 새 대상이나 촬영 묶음으로 테스트합니다. 분류 결과·전송 신호·기기 동작을 나누어 기록하고 실패 원인을 확인합니다.</p></article>').join('')+'</section>').join('');
+}
 function project4HTML(lab, st) {
   if (lab.id !== 4) return '';
   return '<article class="card" id="project4Inquiry"><h3>📝 종합 프로젝트 · 문제 해결 탐구 기록</h3>' +
     '<p class="lead">우리 주변의 문제를 찾아 AI가 배우고, 마이크로비트가 행동하도록 설계해 보세요. 1~4번은 계획·구현 과정에, 5번은 테스트 후 작성하세요. 아래 모델 불러오기부터 기존 실습을 이어서 진행할 수 있어요.</p>' +
     '<p class="msg" style="margin-bottom:16px">문제 발견 → 데이터 수집 → AI 학습 → 마이크로비트 동작 → 테스트·개선<br><span class="small">답안은 이 브라우저에 자동 저장됩니다. 탐구 기록의 내용은 교사가 평가하며, 기존 결과 체크 점수에는 추가되지 않습니다.</span></p>' +
+    sdgTopicHintsHTML() +
     PROJECT4_QUESTIONS.map((q,i) => '<div class="note" style="margin-bottom:22px"><label for="'+q.id+'">'+(i+1)+'. '+esc(q.title)+'</label>' +
       '<p class="small" id="'+q.id+'_hint" style="margin:5px 0 8px">'+esc(q.hint)+'</p>' +
       '<textarea id="'+q.id+'" rows="5" maxlength="6000" data-project4="'+q.id+'" aria-describedby="'+q.id+'_hint" placeholder="우리 모둠의 생각과 실제 진행 내용을 적어 주세요.">'+esc((st.notes && st.notes[q.id]) || '')+'</textarea>' +
@@ -1086,12 +1098,13 @@ function labHTML(lab, st) {
     '<article class="card"><h3><span class="n">6</span>결과 제출 · 결과 체크하기</h3>' +
       '<p class="lead">제출하면 연결표의 신호마다 내 코드를 실제로 실행해서 확인해요. 조건을 모두 채울 때까지 여러 번 제출할 수 있고, 제출할 때마다 횟수가 쌓여요. 구글시트 연결이 설정되어 있으면 결과를 자동 저장하고, 서버에서 저장 완료 응답을 받은 뒤 완료를 표시해요. 자동 저장이 실패하면 아래 <b>[결과 복사하기]</b>로 수동 제출하세요. 팀원 모두의 이름으로 기록돼요.</p>' +
       '<button type="button" class="btn led" id="btnSubmit">결과 제출 · 결과 체크하기</button>' +
-      '<div id="sheetAutoStatus" class="msg" role="status" style="display:none"></div><div id="resultBox"></div><div id="mailBox"></div><details class="ex" id="teacherSheetSettings" hidden><summary>교사용 · 구글시트 자동 저장 연결 설정</summary><p class="small">함께 제공된 설정 안내에 따라 Apps Script 웹 앱을 배포한 뒤 주소를 입력하세요. 학번·이름이 포함되므로 교사 소유 시트와 접근 정책을 확인하세요.</p><button type="button" class="btn sm ghost" onclick="configureSheetEndpoint()">자동 저장 연결 주소 설정</button></details><div id="myCodeBox"></div></article>' +
+      '<div id="sheetAutoStatus" class="msg" role="status" style="display:none"></div><div id="resultBox"></div><div id="mailBox"></div><div id="myCodeBox"></div></article>' +
     project4RubricHTML(lab) +
     '</div>';
 }
 
 function renderLab() {
+  buildMembers();
   stopRuntime(); clearPlay(); rt = freshRT(); mc.frame = null;
   const lab = curLab(), st = L(lab.id);
   $('#labView').innerHTML = labHTML(lab, st);
@@ -1121,7 +1134,6 @@ function bindLab(lab, st) {
   $('#btnRun').addEventListener('click', runStart);
   $('#btnStop').addEventListener('click', () => stopRuntime());
   $('#btnSerial').addEventListener('click', onSerialClick);
-  const teacherPanel = $('#teacherSheetSettings'); if (teacherPanel) teacherPanel.hidden = new URLSearchParams(location.search).get('teacher') !== '1';
   const cp = $('#btnCopyEx'); if (cp) cp.addEventListener('click', () => copyText(genCode(mappedRows(st))));
   $$('#typeSeg input').forEach((r) => r.addEventListener('change', () => {
     if (st.type === r.value) return;
@@ -1619,6 +1631,65 @@ function renderMailBox(info) {
   const cb = $('#btnCopyMail'); if (cb) cb.addEventListener('click', () => copyText(mailBody(info, true)));
 }
 
+
+const APPS_SCRIPT_TEMPLATE = "// 교사 소유 구글시트의 확장 프로그램 → Apps Script에 붙여 넣으세요.\nconst TARGET_SPREADSHEET_ID = '1ssQRtjWPoCVK1HhligzjFJjPVppdY1Yp8ft9skZn5Bc';\nconst LAB_TAB_NAMES = ['실습1', '실습2', '실습3', '실습4'];\nfunction doPost(e) {\n  let requestId = '';\n  let lock;\n  try {\n    const payload = JSON.parse(e.parameter.payload || '{}');\n    requestId = String(payload.requestId || '');\n    if (!/^req_[0-9]+_[a-z0-9]+$/.test(requestId)) throw new Error('잘못된 제출 ID');\n    if (!Array.isArray(payload.rows) || payload.rows.length < 1 || payload.rows.length > 20) throw new Error('제출 행 오류');\n    const headers = ['제출시각','학번','이름','모둠원','실습','완성','충족/전체','제출횟수','완성까지(회)','실기 전송(회)','모델 종류','모델 링크','클래스','연결표','글쓰기','코드'];\n    const labNumbers = payload.rows.map(function(row) {\n      if (!Array.isArray(row)) throw new Error('제출 행 오류');\n      const match = /^([1-4])\\s*\\./.exec(String(row[4] || ''));\n      if (!match) throw new Error('실습 번호 오류');\n      return Number(match[1]);\n    });\n    if (labNumbers.some(function(n) { return n !== labNumbers[0]; })) throw new Error('서로 다른 실습이 섞여 있습니다.');\n    const tabName = LAB_TAB_NAMES[labNumbers[0] - 1];\n    const rows = payload.rows.map(function(row) {\n      if (!Array.isArray(row) || row.length !== headers.length) throw new Error('제출 열 오류');\n      return row.map(function(value) {\n        let text = String(value == null ? '' : value);\n        if (text.length > 45000) throw new Error('답안이 너무 깁니다. 교사에게 문의하세요.');\n        // 학생 입력이 시트 수식으로 실행되지 않도록 처리합니다.\n        if (/^[\\s]*[=+@-]/.test(text)) text = \"'\" + text;\n        return text;\n      }).concat([requestId, new Date()]);\n    });\n    lock = LockService.getScriptLock();\n    lock.waitLock(30000);\n    const ss = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);\n    LAB_TAB_NAMES.forEach(function(name) {\n      let tab = ss.getSheetByName(name);\n      if (!tab) tab = ss.insertSheet(name);\n      if (tab.getLastRow() === 0) {\n        tab.appendRow(headers.concat(['제출ID','서버저장시각']));\n        tab.setFrozenRows(1);\n      }\n    });\n    const sheet = ss.getSheetByName(tabName);\n    if (sheet.getLastRow() === 0) {\n      sheet.appendRow(headers.concat(['제출ID','서버저장시각']));\n      sheet.setFrozenRows(1);\n    }\n    // 같은 요청의 재처리는 중복 기록하지 않습니다.\n    const lastRow = sheet.getLastRow();\n    const existing = lastRow > 1 ? sheet.getRange(2, 17, lastRow - 1, 1).createTextFinder(requestId).matchEntireCell(true).findNext() : null;\n    if (!existing) {\n      const start = sheet.getLastRow() + 1;\n      sheet.getRange(start, 1, rows.length, 18).setValues(rows);\n      SpreadsheetApp.flush();\n    }\n    CacheService.getScriptCache().put(requestId, 'saved', 21600);\n    return sheetReply_(requestId, true, '');\n  } catch (err) {\n    console.error(err);\n    return sheetReply_(requestId, false, '저장에 실패했습니다. 교사에게 시트 권한과 배포 설정 확인을 요청하세요.');\n  } finally {\n    if (lock && lock.hasLock()) lock.releaseLock();\n  }\n}\nfunction sheetReply_(requestId, ok, error) {\n  const message = JSON.stringify({kind:'aiMicrobitSheetResult', requestId:requestId, ok:ok, error:error}).replace(/<\/g, '\\\\u003c');\n  // Apps Script의 샌드박스 iframe에서 학생 페이지까지 완료 메시지를 전달합니다.\n  const html = '<!doctype html><meta charset=\"utf-8\"><p>제출 처리 완료<\/p><script>const m=' + message + ';let w=window;for(let i=0;i<8;i++){w.parent.postMessage(m,\"*\");if(w===w.parent)break;w=w.parent;}<\/script>';\n  return HtmlService.createHtmlOutput(html).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);\n}\n\nfunction doGet(e) {\n  const p = (e && e.parameter) || {};\n  if (p.action === 'status') {\n    const id = String(p.requestId || '');\n    const cb = String(p.callback || '');\n    if (!/^req_[0-9]+_[a-z0-9]+$/.test(id) || !/^sheetAck_req_[0-9]+_[a-z0-9]+$/.test(cb)) {\n      return ContentService.createTextOutput('Invalid request');\n    }\n    let saved = CacheService.getScriptCache().get(id) === 'saved';\n    if (!saved) {\n      const ss = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);\n      saved = LAB_TAB_NAMES.some(function(name) {\n        const sh = ss.getSheetByName(name);\n        return !!(sh && sh.getLastRow() > 1 && sh.getRange(2,17,sh.getLastRow()-1,1).createTextFinder(id).matchEntireCell(true).findNext());\n      });\n    }\n    return ContentService.createTextOutput(cb + '(' + JSON.stringify({requestId:id,ok:saved}) + ');').setMimeType(ContentService.MimeType.JAVASCRIPT);\n  }\n  return HtmlService.createHtmlOutput('<meta charset=\"utf-8\"><h2>提出接続は正常です<\/h2><p>学生用HTMLページから提出してください。<\/p>'.replace('提出接続は正常です','제출 연결 주소입니다').replace('学生用HTMLページから提出してください。','학생용 HTML 페이지에서 제출해 주세요.'));\n}\n";
+function getSetup() {
+  let embedded = {}, local = {};
+  try { embedded = JSON.parse(document.getElementById('deploymentSettings').textContent); } catch(e) {}
+  try { local = JSON.parse(localStorage.getItem('ai_microbit_setup_v2') || '{}'); } catch(e) {}
+  // 배포 파일에 포함된 설정을 우선합니다.
+  return Object.assign({}, local, embedded);
+}
+function sheetIdFromURL(value) {
+  const m = /^https:\/\/docs\.google\.com\/spreadsheets\/d\/([A-Za-z0-9_-]+)(?:\/|$|\?)/.exec(value.trim());
+  return m ? m[1] : '';
+}
+function setupTeacherTools() {
+ const cfg = getSetup();
+ $('#setupSheet').value = cfg.sheetLink || CONFIG.sheetLink || '';
+ $('#setupExec').value = cfg.sheetUrl || sheetEndpoint() || '';
+ function code() {
+   const id = sheetIdFromURL($('#setupSheet').value);
+   $('#setupCode').value = APPS_SCRIPT_TEMPLATE.replace(/const TARGET_SPREADSHEET_ID = '[^']*';/, "const TARGET_SPREADSHEET_ID = '"+(id || '구글시트ID를입력하세요')+"';");
+ }
+ function validated(requireEndpoint) {
+   const sheetLink = $('#setupSheet').value.trim(), sheetUrl = $('#setupExec').value.trim();
+   if (!sheetIdFromURL(sheetLink)) throw Error('올바른 구글시트 주소를 입력하세요.');
+   if ((requireEndpoint || sheetUrl) && !/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(sheetUrl)) throw Error('올바른 Apps Script /exec 배포 주소를 입력하세요.');
+   return {sheetLink,sheetUrl};
+ }
+ function saveSetup(requireEndpoint) {
+   const value = validated(requireEndpoint);
+   document.getElementById('deploymentSettings').textContent = JSON.stringify(value).replace(/</g,'\\u003c');
+   CONFIG.sheetLink = value.sheetLink; CONFIG.sheetUrl = value.sheetUrl;
+   try { localStorage.setItem('ai_microbit_setup_v2',JSON.stringify(value)); localStorage.setItem('ai_microbit_sheet_endpoint_v1',value.sheetUrl); } catch(e) {}
+   return value;
+ }
+ $('#setupSheet').addEventListener('input',code); code();
+ $('#setupCopy').onclick = () => { if(!sheetIdFromURL($('#setupSheet').value)){toast('먼저 구글시트 주소를 입력하세요.');return;} copyText($('#setupCode').value); };
+ $('#setupSave').onclick = () => {try{saveSetup(true);toast('연결 설정을 적용했습니다. 학생 배포 시 설정 포함 HTML을 내려받으세요.');}catch(e){toast(e.message);} };
+ $('#setupDownload').onclick = () => {
+   try {
+    saveSetup(true);
+    const clone = document.documentElement.cloneNode(true);
+    const dialog = clone.querySelector('#dlg'); if(dialog){dialog.innerHTML='';dialog.removeAttribute('open');}
+    const members = clone.querySelector('#memberBox');if(members)members.innerHTML='';
+    ['#labView','#tabs'].forEach(sel=>{const el=clone.querySelector(sel);if(el)el.innerHTML='';});
+    ['#stDone','#stSub'].forEach(sel=>{const el=clone.querySelector(sel);if(el)el.textContent='0';});
+    const source = '<!doctype html>\n'+clone.outerHTML;
+    const blob = new Blob([source],{type:'text/html;charset=utf-8'}), url=URL.createObjectURL(blob), a=document.createElement('a');
+    a.href=url;a.download='AI_microbit_설정완료.html';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    toast('설정 포함 HTML을 내려받았습니다. 이 파일을 학생에게 배포하세요.');
+   } catch(e){toast(e.message);}
+ };
+}
+function teacherSetupHTML() {
+ return '<section class="msg"><h3>⚙️ 처음 한 번 연결하기</h3><ol style="padding-left:22px;line-height:1.9"><li>교사 소유 구글시트를 만들고 아래에 주소를 입력합니다.</li><li>시트의 <b>확장 프로그램 → Apps Script</b>를 열고, 아래 코드 복사 버튼으로 복사한 코드를 기존 코드 전체 대신 붙여 넣습니다.</li><li><b>배포 → 새 배포 → 웹 앱</b>에서 실행 사용자를 <b>나</b>로, 접근 범위를 학생들이 접속 가능한 범위로 설정한 후 권한을 승인합니다. 학교 정책이 허용하지 않으면 관리자에게 문의하세요.</li><li>배포된 <b>/exec</b> 주소를 입력하고 설정을 적용합니다.</li><li><b>설정 포함 HTML 내려받기</b>로 받은 파일을 학생들에게 배포합니다. 교사 컴퓨터에만 저장한 설정은 다른 기기에 전달되지 않습니다.</li><li>시험 제출 후 구글시트의 실습1~4 탭과 저장 완료 표시를 확인합니다. 코드 수정 시 배포 관리에서 <b>새 버전</b>으로 업데이트합니다.</li></ol><label for="setupSheet"><b>1. 구글시트 URL</b></label><input id="setupSheet" style="display:block;width:100%;max-width:100%;min-width:0;box-sizing:border-box" type="url" placeholder="https://docs.google.com/spreadsheets/d/…/edit"><label for="setupExec" style="display:block;margin-top:12px"><b>2. Apps Script 배포 URL</b></label><input id="setupExec" style="display:block;width:100%;max-width:100%;min-width:0;box-sizing:border-box" type="url" placeholder="https://script.google.com/macros/s/…/exec"><div class="row" style="margin:12px 0;flex-wrap:wrap"><button type="button" class="btn" id="setupSave">연결 설정 적용</button><button type="button" class="btn" id="setupDownload">설정 포함 HTML 내려받기</button></div><details class="ex"><summary>3. Apps Script 전체 코드 · 눌러서 보기</summary><p class="small">입력한 구글시트 주소에 맞게 코드의 시트 ID가 자동 변경됩니다. 시트 주소를 바꾸면 코드를 다시 복사하고 재배포해야 합니다.</p><button type="button" class="btn sm" id="setupCopy">Apps Script 코드 전체 복사</button><textarea id="setupCode" rows="14" readonly style="margin-top:10px;font:12px/1.6 monospace" aria-label="Apps Script 전체 코드"></textarea></details><p class="small">학생 이름·학번이 저장되므로 시트를 전체 공개하지 마세요. 0543은 화면 잠금용이며 실제 보안은 Google 계정과 시트 권한으로 관리합니다. 내려받은 HTML에는 연결 주소만 포함되며 브라우저에 저장한 학생 답안·학번·이름은 포함되지 않습니다.</p></section>';
+}
+
+const initialSetup = getSetup();
+if(initialSetup.sheetLink) CONFIG.sheetLink=initialSetup.sheetLink;
+if(initialSetup.sheetUrl) CONFIG.sheetUrl=initialSetup.sheetUrl;
 let grading = false;
 
 /* 구글시트 저장: 서버의 저장 완료 응답을 받아야 성공으로 표시합니다. */
@@ -1668,14 +1739,14 @@ async function submitToGoogleSheet(info) {
       timer = setTimeout(() => { cleanup(); reject(new Error('저장 완료 응답을 받지 못했습니다. 시트에서 저장 여부를 먼저 확인하세요.')); }, 90000);
       document.body.append(iframe, form); form.submit();
     });
-    sheetStatus('구글시트 저장 완료! 모둠원별 결과와 실습 4 탐구 답안이 저장되었습니다.', 'ok');
+    sheetStatus(info.lab.id === 4 ? '구글시트 저장 완료! 모둠원별 결과와 탐구 답안이 저장되었습니다.' : '구글시트 저장 완료! 개인 실습 결과가 저장되었습니다.', 'ok');
   } catch(e) { sheetStatus('저장을 확인하지 못했습니다: ' + e.message + ' 중복 제출을 피하려면 교사에게 저장 여부 확인을 요청하세요.', 'err'); }
 }
 
 async function onSubmit() {
   if (grading) return;
   const sid = S.student.sid.trim(), name = S.student.name.trim();
-  if (!sid || !name) { toast('위쪽에 팀원 1의 학번과 이름을 먼저 입력해 주세요.'); $(sid ? '#mName0' : '#mSid0').focus(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+  if (!sid || !name) { toast(S.cur === 4 ? '위쪽에 팀원 1의 학번과 이름을 먼저 입력해 주세요.' : '위쪽에 본인의 학번과 이름을 먼저 입력해 주세요.'); $(sid ? '#mName0' : '#mSid0').focus(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
   const hm = halfMember();
   if (hm >= 0) { toast('팀원 ' + (hm + 2) + '의 학번과 이름을 둘 다 쓰거나, 둘 다 비워 주세요.'); $('#mSid' + (hm + 1)).focus(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
   const lab = curLab(), st = L(lab.id), btn = $('#btnSubmit');
@@ -1690,7 +1761,7 @@ async function onSubmit() {
     st.sub.last = { pass: res.pass, okN: res.okN, total: res.total };
     save(); renderDash(); renderTabs();
     if (S.cur === lab.id) renderResult(res);
-    const team = teamList();
+    const team = teamList(lab.id);
     const mailInfo = { team, lab, st, res, code };
     lastMail = mailInfo;
     if (CONFIG.teacherEmail && CONFIG.useFormSubmit) {
@@ -1748,46 +1819,10 @@ function openTeacher() {
   });
 }
 function teacherPanel() {
-  openDlg('<div class="dlg-h"><h3>교사 모드 · 결과 모아 보기</h3><button type="button" class="btn sm ghost" data-close style="color:var(--ink)">닫기</button></div>' +
-    '<p class="small">학생이 복사해 온 <b>결과 코드</b>를 한 줄에 하나씩 붙여 넣으세요. 같은 학번은 가장 최근 제출만 남겨요.</p>' +
-    '<textarea id="tCodes" rows="5" style="font:12px/1.4 ui-monospace,Consolas,monospace" placeholder="MBAI1.…"></textarea>' +
-    '<div class="row" style="margin-top:8px"><button type="button" class="btn sm" id="tShow">표로 보기</button><button type="button" class="btn sm ghost" id="tLocal" style="color:var(--ink)">이 컴퓨터 기록 추가</button><button type="button" class="btn sm led" id="tCsv">CSV 저장</button></div>' +
-    '<p class="small" id="tInfo" style="margin-top:8px"></p><div class="tblwrap" id="tTable"></div>' +
-    '<p class="small" style="margin-top:10px">비밀번호·점수 기준·전송 주소는 index.html 맨 위 CONFIG에서 바꿔요.' + (CONFIG.teacherPassword === '1234' ? ' <b>지금은 기본 비밀번호(1234)예요. 배포 전에 꼭 바꿔 주세요.</b>' : '') + '</p>');
-  $('#tShow').addEventListener('click', () => { tList = []; collect($('#tCodes').value); drawTable(); });
-  $('#tLocal').addEventListener('click', () => {
-    const r = buildResult(S);
-    if (!r.sid || !Object.keys(r.labs).length) { toast('이 컴퓨터에 제출 기록이 없어요.'); return; }
-    mergeResult(r); drawTable();
-  });
-  $('#tCsv').addEventListener('click', () => {
-    if (!tList.length) { toast('먼저 [표로 보기]를 눌러 주세요.'); return; }
-    const blob = new Blob(['﻿' + rowsToCSV(resultsToRows(tList))], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'microbit-ai-결과.csv'; document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  });
-}
-function mergeResult(r) {
-  const key = r.sid || r.name, i = tList.findIndex((x) => (x.sid || x.name) === key);
-  if (i < 0) tList.push(r); else if (r.ts > tList[i].ts) tList[i] = r;
-}
-let tBad = [];
-function collect(text) {
-  tBad = [];
-  text.split(/\r?\n/).forEach((ln, i) => {
-    if (!ln.trim()) return;
-    const d = decodeResult(ln);
-    if (d.ok) mergeResult(d.data); else tBad.push((i + 1) + '번째 줄: ' + d.msg);
-  });
-}
-function drawTable() {
-  const rows = resultsToRows(tList), skip = 14;
-  const head = CSV_HEAD.filter((h, i) => i !== skip);
-  $('#tInfo').textContent = '제출 ' + tList.length + '팀(명) · 기록 ' + rows.length + '건' + (tBad.length ? ' · 읽지 못한 코드 ' + tBad.length + '건 (' + tBad.slice(0, 3).join(', ') + ')' : '');
-  $('#tTable').innerHTML = rows.length
-    ? '<table class="res"><thead><tr>' + head.map((h) => '<th>' + h + '</th>').join('') + '</tr></thead><tbody>' +
-      rows.map((r) => '<tr>' + r.filter((c, i) => i !== skip).map((c, i) => '<td class="' + (i === 4 && c === '완성' ? 'okc' : '') + '" title="' + esc(c) + '">' + esc(c) + '</td>').join('') + '</tr>').join('') + '</tbody></table>'
-    : '<div class="empty">표시할 결과가 없어요.</div>';
+  openDlg('<div class="dlg-h"><h3>교사 모드 · SDGs 지도 자료</h3><button type="button" class="btn sm ghost" data-close style="color:var(--ink)">닫기 · 잠그기</button></div>' +
+    teacherSetupHTML() + '<section class="msg"><h4 style="margin:0 0 8px">📊 현재 제출 현황</h4><p class="small">아래 버튼으로 제출 결과가 저장되는 구글시트를 엽니다. 실습1·실습2·실습3·실습4 탭을 선택해 제출 기록과 글쓰기를 확인하세요. 이 화면에서 학생 명단을 읽어오거나 제출 여부를 자동 집계하지는 않습니다.</p><a class="btn" onclick="this.href=CONFIG.sheetLink" href="'+esc(CONFIG.sheetLink)+'" target="_blank" rel="noopener">제출 현황 시트 열기 ↗</a><p class="small">교사 계정으로 로그인하고 해당 시트의 접근 권한이 있어야 합니다. 기존 시트에서 파일 → 다운로드 → Microsoft Excel로 내려받을 수도 있습니다.</p></section>' +
+    '<h3 style="margin-top:22px">17개 목표 · 51개 상세 지도 예시</h3><p class="small">학생 화면에는 목표와 제목만 표시됩니다. 아래는 교사용 수업 설계 예시이며 UN이 제시한 공식 프로젝트 목록은 아닙니다. 실제 수업 환경에 맞춰 조정하세요.</p><div class="msg"><b>공통 지도 원칙</b><p class="small">단순 규칙·센서와 비교해 AI가 필요한 이유를 설명하도록 돕습니다. 개인정보·민감정보는 수집하지 않고 의료·재난·전기·급수 장치를 실제로 제어하지 않습니다. 모형과 LED로 안전하게 시연하며 정확도만으로 평가하지 않습니다.</p></div>'+teacherSDGDetailsHTML());
+  setupTeacherTools();
 }
 
 /* ---------- 시작 ---------- */
