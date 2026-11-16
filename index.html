@@ -1,4 +1,4 @@
- <!doctype html>
+<!doctype html>
 <html lang="ko">
 <head>
 <meta charset="utf-8">
@@ -241,7 +241,7 @@ footer{padding:26px 0 40px;color:var(--mute);font-size:.85rem}
    ============================================================ */
 const CONFIG = {
   teacherPassword: '1234',     // 교사 모드 비밀번호 — 꼭 바꿔서 배포하세요
-  sheetUrl: 'https://script.google.com/macros/s/AKfycbzopRLGkCTs99omFm4K_M4t8kIlGAy9AInvCp5WtM-weBeiAtaZqCcVyTYZzARhHzhU/exec',                // (선택) 구글 앱스크립트 웹앱 주소(비우면 서버로 보내지 않음)
+  sheetUrl: '',                // (선택) 구글 앱스크립트 웹앱 주소(비우면 서버로 보내지 않음)
   teacherEmail: 'iulralra@naver.com',   // 제출할 때마다 실습 결과를 이 주소로 메일 전송 (비우면 전송 안 함)
   sheetLink: 'https://docs.google.com/spreadsheets/d/1ssQRtjWPoCVK1HhligzjFJjPVppdY1Yp8ft9skZn5Bc/edit?usp=sharing',  // 학생이 결과를 붙여 넣을 구글 시트
   useFormSubmit: false,        // true: FormSubmit 서비스로 메일 전송(학교망에서 막히는 경우가 많아 기본 꺼 둠)
@@ -388,7 +388,7 @@ const LABS = [
     standard: '문제 해결에 알맞은 인공지능 모델을 선택해 학습시키고, 피지컬 컴퓨팅 장치로 구현해 개선한다.',
     expect: '해결할 문제에 맞는 모델과 출력 방식을 스스로 선택하고, 한계와 개선점을 설명할 수 있다.',
     minClasses: 3, minActions: 4, minTest: 3, minGroups: 2,
-    cond: '클래스 3개 이상 · 서로 다른 동작 4개 이상 · LED와 소리를 함께 사용 · 인식해서 보내 본 클래스 3개 이상 · 코드를 실행하면 연결표대로 움직임 · 글쓰기',
+    cond: '클래스 3개 이상 · 인식해서 보내 본 클래스 3개 이상 · 코드를 실행하면 연결표대로 움직임 · 글쓰기',
     example: exOne('basic.showIcon(IconNames.Happy)'),
     notes: [
       { id: 'n1', label: '어떤 문제를 해결하려고 하나요? 누가 어떻게 사용하나요?', hint: '예) 도서관에서 큰 소리가 나면 LED로 조용히 하라고 알려 주는 장치', min: 30 },
@@ -584,12 +584,12 @@ function gradeLab(lab, st, run) {
     hint: '지금 클래스가 ' + nCls + '개예요. Teachable Machine에서 클래스를 더 만들어 다시 학습시켜 보세요.'
   });
   const acts = new Set(rows.map((r) => r.action));
-  items.push({
+  if (lab.id !== 4) items.push({
     id: 'map', required: true, ok: acts.size >= lab.minActions,
     label: '서로 다른 동작 ' + lab.minActions + '개 이상 연결',
     hint: '지금 서로 다른 동작이 ' + acts.size + '개 연결됐어요. 2번 연결표를 채워 보세요.'
   });
-  if (lab.minGroups > 1) {
+  if (lab.id !== 4 && lab.minGroups > 1) {
     const kinds = new Set(rows.map((r) => actionKind(r.action)));
     items.push({
       id: 'kinds', required: true, ok: kinds.size >= lab.minGroups,
@@ -637,7 +637,7 @@ function gradeLab(lab, st, run) {
     label: '코드를 실행하면 연결표대로 움직임', hint: codeHint || '연결표와 코드를 다시 확인해 보세요.'
   });
 
-  lab.notes.forEach((n) => {
+  if (lab.id !== 4) lab.notes.forEach((n) => {
     const len = String((st.notes && st.notes[n.id]) || '').trim().length;
     items.push({
       id: 'note_' + n.id, required: true, ok: len >= n.min,
@@ -1086,7 +1086,7 @@ function labHTML(lab, st) {
     '<article class="card"><h3><span class="n">6</span>결과 제출 · 결과 체크하기</h3>' +
       '<p class="lead">제출하면 연결표의 신호마다 내 코드를 실제로 실행해서 확인해요. 조건을 모두 채울 때까지 여러 번 제출할 수 있고, 제출할 때마다 횟수가 쌓여요. 구글시트 연결이 설정되어 있으면 결과를 자동 저장하고, 서버에서 저장 완료 응답을 받은 뒤 완료를 표시해요. 자동 저장이 실패하면 아래 <b>[결과 복사하기]</b>로 수동 제출하세요. 팀원 모두의 이름으로 기록돼요.</p>' +
       '<button type="button" class="btn led" id="btnSubmit">결과 제출 · 결과 체크하기</button>' +
-      '<div id="sheetAutoStatus" class="msg" role="status" style="display:none"></div><div id="resultBox"></div><div id="mailBox"></div><details class="ex"><summary>교사용 · 구글시트 자동 저장 연결 설정</summary><p class="small">함께 제공된 설정 안내에 따라 Apps Script 웹 앱을 배포한 뒤 주소를 입력하세요. 학번·이름이 포함되므로 교사 소유 시트와 접근 정책을 확인하세요.</p><button type="button" class="btn sm ghost" onclick="configureSheetEndpoint()">자동 저장 연결 주소 설정</button></details><div id="myCodeBox"></div></article>' +
+      '<div id="sheetAutoStatus" class="msg" role="status" style="display:none"></div><div id="resultBox"></div><div id="mailBox"></div><details class="ex" id="teacherSheetSettings" hidden><summary>교사용 · 구글시트 자동 저장 연결 설정</summary><p class="small">함께 제공된 설정 안내에 따라 Apps Script 웹 앱을 배포한 뒤 주소를 입력하세요. 학번·이름이 포함되므로 교사 소유 시트와 접근 정책을 확인하세요.</p><button type="button" class="btn sm ghost" onclick="configureSheetEndpoint()">자동 저장 연결 주소 설정</button></details><div id="myCodeBox"></div></article>' +
     project4RubricHTML(lab) +
     '</div>';
 }
@@ -1121,6 +1121,7 @@ function bindLab(lab, st) {
   $('#btnRun').addEventListener('click', runStart);
   $('#btnStop').addEventListener('click', () => stopRuntime());
   $('#btnSerial').addEventListener('click', onSerialClick);
+  const teacherPanel = $('#teacherSheetSettings'); if (teacherPanel) teacherPanel.hidden = new URLSearchParams(location.search).get('teacher') !== '1';
   const cp = $('#btnCopyEx'); if (cp) cp.addEventListener('click', () => copyText(genCode(mappedRows(st))));
   $$('#typeSeg input').forEach((r) => r.addEventListener('change', () => {
     if (st.type === r.value) return;
@@ -1602,17 +1603,7 @@ function sheetRows(info) {
     (st.classes || []).join(', '), map, notes[0] || '', notes[1] || '', code]);
 }
 function sheetTSV(info) { return sheetRows(info).map((r) => r.map(tsvCell).join('\t')).join('\n'); }
-function renderSheetBox(info) {
-  const box = $('#mailBox'); if (!box) return;
-  if (!info || !CONFIG.sheetLink) { box.innerHTML = ''; return; }
-  box.innerHTML = '<div class="msg ok" style="margin-top:12px"><b>이제 선생님 구글 시트에 결과를 넣어요.</b><ol class="steps" style="margin:6px 0 0">' +
-    '<li>[결과 복사하기]를 눌러요.</li><li>[구글 시트 열기]를 눌러 시트에 들어가요.</li><li>표의 <b>맨 아래 빈 줄 첫 칸(A열)</b>을 클릭하고 <b>Ctrl+V</b>로 붙여 넣어요.</li></ol></div>' +
-    '<div class="row" style="margin-top:8px"><button type="button" class="btn sm led" id="btnCopySheet">결과 복사하기</button>' +
-    '<a class="btn sm" href="' + esc(CONFIG.sheetLink) + '" target="_blank" rel="noopener" style="text-decoration:none">구글 시트 열기</a>' +
-    '<button type="button" class="btn sm ghost" id="btnCopyHead" style="color:var(--ink)">(선생님용) 머리글 복사</button></div>';
-  $('#btnCopySheet').addEventListener('click', () => copyText(sheetTSV(info)));
-  $('#btnCopyHead').addEventListener('click', () => copyText(SHEET_HEAD.join('\t')));
-}
+function renderSheetBox() { const box = $('#mailBox'); if (box) box.innerHTML = ''; }
 
 function renderMailBox(info) {
   const box = $('#mailBox'); if (!box) return;
@@ -1648,7 +1639,7 @@ function sheetStatus(text, kind) {
 }
 async function submitToGoogleSheet(info) {
   const endpoint = sheetEndpoint();
-  if (!endpoint) { sheetStatus('결과 확인은 끝났지만 구글시트에는 저장되지 않았습니다. 교사가 자동 저장 연결 주소를 설정해야 합니다. 지금은 결과 복사하기로 수동 제출하세요.', 'err'); return; }
+  if (!endpoint) { sheetStatus('결과 확인은 끝났지만 구글시트에는 저장되지 않았습니다. 교사가 자동 저장 연결 주소를 설정해야 합니다. 교사에게 연결 설정 확인을 요청하세요.', 'err'); return; }
   const requestId = 'req_' + Date.now() + '_' + Math.random().toString(36).slice(2);
   const payload = { requestId, headers: SHEET_HEAD, rows: sheetRows(info), notes: info.st.notes || {} };
   sheetStatus('구글시트에 저장 중입니다. 완료 메시지가 나올 때까지 기다려 주세요.');
@@ -1657,19 +1648,28 @@ async function submitToGoogleSheet(info) {
       const iframe = document.createElement('iframe'); iframe.name = requestId; iframe.style.display = 'none'; iframe.title = '제출 응답';
       const form = document.createElement('form'); form.method = 'POST'; form.action = endpoint; form.target = requestId; form.style.display = 'none';
       const input = document.createElement('input'); input.type = 'hidden'; input.name = 'payload'; input.value = JSON.stringify(payload); form.append(input);
-      let timer;
-      const cleanup = () => { clearTimeout(timer); window.removeEventListener('message', onMessage); form.remove(); iframe.remove(); };
+      let timer, pollTimer, pollNode;
+      const callback = 'sheetAck_' + requestId;
+      const poll = () => {
+        if (pollNode) pollNode.remove();
+        pollNode = document.createElement('script');
+        pollNode.src = endpoint + '?action=status&requestId=' + encodeURIComponent(requestId) + '&callback=' + callback + '&t=' + Date.now();
+        document.head.appendChild(pollNode);
+      };
+      window[callback] = data => { if (data && data.requestId === requestId && data.ok === true) { cleanup(); resolve(); } };
+      pollTimer = setInterval(poll, 4000);
+      const cleanup = () => { clearTimeout(timer); clearInterval(pollTimer); if (pollNode) pollNode.remove(); delete window[callback]; window.removeEventListener('message', onMessage); form.remove(); iframe.remove(); };
       const onMessage = e => {
-        if (!/^https:\/\/(?:script\.google\.com|(?:[a-z0-9-]+\.)?script\.googleusercontent\.com)$/.test(e.origin)) return;
+        if (!/^https:\/\/(?:script\.google\.com|(?:[a-z0-9-]+\.)?googleusercontent\.com|(?:[a-z0-9-]+\.)?script\.googleusercontent\.com)$/.test(e.origin)) return;
         if (!e.data || e.data.kind !== 'aiMicrobitSheetResult' || e.data.requestId !== requestId) return;
         cleanup(); e.data.ok ? resolve() : reject(new Error(e.data.error || '서버 저장 오류'));
       };
       window.addEventListener('message', onMessage);
-      timer = setTimeout(() => { cleanup(); reject(new Error('저장 완료 응답을 받지 못했습니다. 시트에서 저장 여부를 먼저 확인하세요.')); }, 45000);
+      timer = setTimeout(() => { cleanup(); reject(new Error('저장 완료 응답을 받지 못했습니다. 시트에서 저장 여부를 먼저 확인하세요.')); }, 90000);
       document.body.append(iframe, form); form.submit();
     });
     sheetStatus('구글시트 저장 완료! 모둠원별 결과와 실습 4 탐구 답안이 저장되었습니다.', 'ok');
-  } catch(e) { sheetStatus('저장을 확인하지 못했습니다: ' + e.message + ' 중복 제출을 피하려면 시트를 먼저 확인하고, 필요하면 결과 복사하기로 수동 제출하세요.', 'err'); }
+  } catch(e) { sheetStatus('저장을 확인하지 못했습니다: ' + e.message + ' 중복 제출을 피하려면 교사에게 저장 여부 확인을 요청하세요.', 'err'); }
 }
 
 async function onSubmit() {
