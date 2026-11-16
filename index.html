@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AI × micro:bit 실습 자동 채점 시스템</title>
+<title>AI × micro:bit 실습 결과 체크 시스템</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
 <style>
 :root{
@@ -193,7 +193,7 @@ footer{padding:26px 0 40px;color:var(--mute);font-size:.85rem}
     <div class="brand">
       <div class="mini" id="logoLeds" aria-hidden="true"></div>
       <div>
-        <h1>AI × micro:bit 실습 자동 채점</h1>
+        <h1>AI × micro:bit 실습 결과 체크</h1>
         <p>내가 학습시킨 인공지능으로 마이크로비트를 움직여요</p>
       </div>
     </div>
@@ -241,7 +241,7 @@ footer{padding:26px 0 40px;color:var(--mute);font-size:.85rem}
    ============================================================ */
 const CONFIG = {
   teacherPassword: '1234',     // 교사 모드 비밀번호 — 꼭 바꿔서 배포하세요
-  sheetUrl: '',                // (선택) 구글 앱스크립트 웹앱 주소(비우면 서버로 보내지 않음)
+  sheetUrl: 'https://script.google.com/macros/s/AKfycbz66UmuycUTF1IlsuZ1qxGHXw_J5nmeafr-XN-NEatzKN4ntYk9TFj7H7iFnNFsJbLk/exec',                // (선택) 구글 앱스크립트 웹앱 주소(비우면 서버로 보내지 않음)
   teacherEmail: 'iulralra@naver.com',   // 제출할 때마다 실습 결과를 이 주소로 메일 전송 (비우면 전송 안 함)
   sheetLink: 'https://docs.google.com/spreadsheets/d/1ssQRtjWPoCVK1HhligzjFJjPVppdY1Yp8ft9skZn5Bc/edit?usp=sharing',  // 학생이 결과를 붙여 넣을 구글 시트
   useFormSubmit: false,        // true: FormSubmit 서비스로 메일 전송(학교망에서 막히는 경우가 많아 기본 꺼 둠)
@@ -979,6 +979,47 @@ function actOpts(lab) {
 }
 const CAM_EMPTY = '카메라(마이크)를 켜면 여기에 나와요.';
 
+
+/* 실습 4 전용: 프로젝트 탐구 기록. 기존 실습·결과 체크 조건은 유지합니다. */
+const PROJECT4_QUESTIONS = [
+  {id:'project4_problem', title:'어떤 문제를 해결하고 싶고, 왜 선택했나요?', hint:'① 언제·어디에서·누가 어떤 불편을 겪나요? ② 선택한 이유와 해결했을 때 좋아지는 점은 무엇인가요? ③ AI가 구분하거나 판단할 대상은 무엇이고, AI가 필요한 이유는 무엇인가요?', example:"[프로젝트: 교실 분리배출 도우미]\n① 해결할 문제: 점심시간 뒤 교실 분리배출함에서 종이와 플라스틱을 어느 칸에 버려야 하는지 친구들이 자주 묻는다. 잘못 버린 물건을 다시 분류하는 불편도 있다.\n② 선택 이유와 기대 효과: 우리 모둠이 청소 시간에 겪은 불편을 줄이고 싶다. 물건을 카메라에 보여 주면 배출할 종류를 알려 주어 올바른 분리배출을 돕는다.\n③ AI의 역할: 물건 사진을 보고 ‘종이’, ‘플라스틱’, ‘기타’를 구분한다. 같은 종류라도 색·모양이 달라 밝기 센서의 한 가지 기준만으로 구분하기 어려워 이미지 분류 AI를 사용한다.\n※ 실제 배출 기준은 재질·오염 상태·지역 규칙에 따라 다르므로, 수업에서 정한 깨끗한 표본만 대상으로 한다. 이 장치는 모든 쓰레기의 배출 방법을 보장하지 않는다."},
+  {id:'project4_data', title:'어떤 데이터를 모으고, 어떻게 수집하나요?', hint:'① 이미지·소리·동작 중 어떤 데이터인가요? 분류 이름(클래스)도 적으세요. ② 장소·도구·방법과 분류별 수집량을 적으세요. 계획은 ‘예정’이라고 표시하세요. ③ 다양한 조건, 분류별 수량 균형, 개인정보 보호 방법을 적으세요.', example:"① 데이터 종류와 클래스: 이미지 데이터. ‘종이’는 깨끗한 종이 상자, ‘플라스틱’은 라벨을 제거한 깨끗한 페트병, ‘기타’는 빈 배경·손만 보이는 장면·연필 등으로 정한다.\n② 수집 계획: 학교 태블릿 카메라로 클래스별 60장씩 총 180장을 직접 촬영해 학습한다. 각 클래스는 서로 다른 물건 또는 장면을 3가지 이상 포함한다. 정면·옆면·기울어진 방향, 밝은 곳·약간 어두운 곳, 서로 다른 배경을 섞는다.\n③ 테스트 데이터: 학습에 사용한 물건과 촬영 묶음은 제외하고, 새 표본을 클래스별 10장씩 총 30장 따로 준비한다. 같은 사진이나 연속 촬영한 거의 같은 사진이 학습용과 테스트용에 함께 들어가지 않게 한다.\n④ 개인정보와 균형: 사람 얼굴·이름표가 찍히지 않게 촬영하고 분류별 학습 수량을 같게 맞춘다. 인터넷 사진을 쓴다면 사용 허용 여부와 출처를 확인한다.\n※ 수량은 설계 예시이며, 실제로 수집한 수량 또는 ‘수집 예정’ 수량을 적는다."},
+  {id:'project4_training', title:'AI를 어떻게 학습시키고, 판단 결과를 활용하나요?', hint:'① 사용 도구와 데이터 정리 → 이름 붙이기 → 학습 순서를 적으세요. ② 학습에 쓰지 않은 테스트용 데이터를 어떻게 준비하나요? ③ 결과가 애매하거나 모르는 대상이 들어오면 어떻게 처리하나요?', example:"① 도구와 학습 순서: Teachable Machine의 이미지 프로젝트를 열고 ‘종이·플라스틱·기타’ 클래스를 만든다. 잘못 넣은 사진과 심하게 흐린 사진을 정리한 뒤 클래스별 학습용 사진 60장을 넣고 학습한다.\n② 처음 보는 데이터로 확인: 따로 준비한 30장을 한 장씩 보여 주고, 실제 종류와 AI의 예측을 기록한다. 학습에 사용한 사진을 다시 보여 주는 것만으로 성능을 판단하지 않는다.\n③ 판단 활용: ‘종이’와 ‘플라스틱’의 예측 확률을 확인하고, 페이지에서 설정할 수 있는 확신도·안정화 조건을 확인한다. 예를 들어 기준을 80%로 정했다면 그 이상이고 결과가 안정적일 때만 해당 신호를 보낸다. 확률 80%가 실제 정답률 80%를 보장하는 것은 아니다.\n④ 애매할 때: ‘기타’는 C 신호로 다시 확인하라는 표시를 한다. 확신도가 기준보다 낮아 신호가 전송되지 않으면 기존 표시가 남을 수 있으므로 이를 정상 분류로 보지 않고 다시 촬영한다. 자동 대기 표시 기능이 없다면 추가 구현 과제로 기록한다."},
+  {id:'project4_operation', title:'AI 판단을 마이크로비트의 어떤 동작으로 연결하나요?', hint:'① 입력 장치 → AI 판단 → 결과 전달 → 마이크로비트 출력 순서를 적으세요. ② 클래스별 신호(A, B, C…)와 LED·소리 등의 동작을 연결하세요. ③ 판단 실패나 연결 끊김 시 처리도 적으세요. 아직 구현하지 않은 부분은 ‘미구현’이라고 표시하세요.', example:"① 동작 순서: 웹캠에 물건 보여 주기 → 컴퓨터의 이미지 AI가 분류하기 → 연결표에 정한 문자 신호 보내기 → 마이크로비트 LED로 결과 알리기.\n② 연결표와 코드: 종이 → A → 체크 표시, 플라스틱 → B → 하트 표시, 기타 → C → X 표시로 정한다. 실제 연결표에서 고를 수 있는 동작으로 설정하고 MakeCode에서도 같은 동작이 나오도록 만든다. 표시는 배출함에 붙인 범례와 함께 사용한다.\n③ 전달·확인: MakeCode에서 줄 바꿈 문자 기준으로 시리얼 신호를 읽고 A·B·C에 따라 분기한다. 먼저 신호 직접 보내기로 가상 동작을 확인하고, AI 실행으로 판단과 동작이 이어지는지 확인한다. 실제 기기에는 코드를 저장한 뒤 이 페이지에서 USB 시리얼 연결을 한다.\n④ 예외와 구현 범위: 코드 시작 때 대기 표시를 하도록 한다. 기타로 판단하면 X를 표시하고 교사에게 확인한다. 연결이 끊기거나 확신도가 낮을 때 표시가 자동으로 초기화되는지는 별도로 테스트한다. 아직 구현하지 않았다면 ‘자동 초기화 미구현’이라고 기록한다.\n※ 연결표의 실제 동작 목록과 수업 장비에 맞게 수정한다."},
+  {id:'project4_test', title:'실제로 문제를 해결했나요? 테스트 결과와 개선 방법은 무엇인가요?', hint:'실제 테스트 후 작성하세요. ① 새로운 대상의 테스트 조건·전체 횟수·AI가 맞힌 횟수·기기가 의도대로 작동한 횟수를 적으세요. ② 실패 원인과 개선·재테스트 결과를 적으세요. ③ 문제 해결 정도, 남은 한계와 모둠원별 역할을 적으세요. 테스트 전이면 ‘미실시’와 계획을 적으세요.', example:"[작성 형식 예시 — 아래 수치는 설명용 가상 결과입니다. 자신의 실험 결과로 바꾸세요.]\n① 테스트 조건: 학습에 쓰지 않은 새 표본 사진을 클래스별 10장씩 총 30장 준비해 같은 교실에서 1장당 1회 시험했다. 화면에 실제 종류, AI 예측, 전송 신호, LED 결과를 기록했다.\n② 첫 결과: AI가 실제 종류를 맞힌 것은 30회 중 24회(80%)였다. 신호가 전송된 28회에서는 마이크로비트가 수신 신호에 맞게 28회 동작했다. 2회는 낮은 확신도로 전송되지 않았다. AI의 분류 성공과 기기의 신호 처리 성공을 구분해 기록했다.\n③ 실패와 개선: 어두운 배경의 종이 상자를 플라스틱으로 오인했다. 어두운 조건의 학습 사진을 종이·플라스틱 클래스에 각각 20장씩 추가하고 재학습했다. 연결이 끊겼을 때 이전 표시가 남는 한계도 발견했다.\n④ 재테스트: 학습에 쓰지 않은 별도의 새 테스트 사진 30장에서는 27회(90%) 맞혔다. 표본이 달라졌기 때문에 이 수치만으로 개선 효과가 확정되었다고 보지 않고 추가 검증이 필요하다고 적었다.\n⑤ 해결 정도·역할: 수업에서 정한 깨끗한 표본의 분류를 돕지만 오염되거나 복합 재질인 물건은 구분하지 못한다. 가 학생은 데이터 수집, 나 학생은 학습·기록, 다 학생은 연결표·코딩을 맡았고 모두 테스트에 참여했다.\n※ 테스트를 하지 않았다면 ‘미실시’와 테스트 계획을 적으세요. 가상 수치를 실제 결과처럼 제출하지 마세요."}
+];
+function project4Text(st) {
+  return PROJECT4_QUESTIONS.map((q,i) => (i+1)+'. '+q.title+'\n'+String((st.notes && st.notes[q.id]) || '').trim()).join('\n\n');
+}
+
+function project4RubricHTML(lab) {
+  if (lab.id !== 4) return '';
+  const rows = [
+    ['문제 발견·AI 활용의 적절성', '20점', '문제 상황·대상과 선택 이유가 구체적이고, AI가 판단할 대상과 활용 이유·기대 효과가 타당함', '필수 요소 4개 중 3개 충족: 15점 / 1~2개: 10점 / 관련 답안은 있으나 요소 미충족: 5점 / 무응답: 0점', '문제 상황·대상 / 선택 이유 / AI 판단 대상·필요성 / 기대 효과'],
+    ['데이터 수집·관리', '20점', '종류·클래스, 수집 방법·수량, 다양성·균형, 개인정보·출처 보호를 구체적으로 설명함', '필수 요소 4개 중 3개 충족: 15점 / 1~2개: 10점 / 관련 답안은 있으나 요소 미충족: 5점 / 무응답: 0점', '데이터 종류·클래스 / 방법·수량 / 다양성·균형 / 개인정보·출처 보호'],
+    ['AI 학습·검증 설계', '20점', '도구와 학습 절차, 학습·테스트 데이터 분리, 새로운 데이터 검증, 애매한 판단의 처리 방법을 설명함', '필수 요소 4개 중 3개 충족: 15점 / 1~2개: 10점 / 관련 답안은 있으나 요소 미충족: 5점 / 무응답: 0점', '도구·학습 절차 / 데이터 분리 / 새 데이터 검증 방법 / 불확실한 판단 처리'],
+    ['마이크로비트 연결·구현', '25점', '전체 흐름과 클래스·신호·출력 대응이 일치하고, 코드로 연결 동작을 구현하며 예외 처리를 확인함', '필수 요소 5개 중 4개 충족: 20점 / 3개: 15점 / 1~2개: 10점 / 관련 시도만 확인됨: 5점 / 증거 없음: 0점', '입력→판단→전달→출력 흐름 / 클래스·신호·출력 연결표 / 코드 분기 구현 / AI와 출력의 연결 시연 / 판단 실패·연결 끊김 처리 또는 한계 확인'],
+    ['테스트·개선·참여 성찰', '15점', '실제 조건·횟수·결과와 실패 원인을 기록하고, 개선·재테스트 및 개인별 기여·한계를 설명함', '필수 요소 3개 중 2개 충족: 10점 / 1개: 5점 / 관련 성찰만 있음: 2점 / 무응답: 0점', '실제 테스트 기록과 실패 원인 / 개선·재테스트 / 해결 정도·한계와 개인별 역할 설명']
+  ];
+  return '<article class="card" id="project4Rubric"><h3>📋 종합 프로젝트 수행평가 기준안 · 총 100점</h3>' +
+    '<p class="lead">수업 시작 전 확인하는 교사 평가 기준안입니다. 교사는 아래 탐구 답안, 데이터·모델, 연결표·코드, 시연·실험 기록과 개인별 설명을 함께 확인합니다. 이 표가 기존 결과 체크 점수를 바꾸지는 않습니다.</p>' +
+    '<div style="overflow-x:auto" tabindex="0" role="region" aria-label="100점 만점 수행평가 기준표"><table class="map" style="min-width:700px"><caption style="text-align:left;font-weight:700;margin-bottom:8px">평가 영역별 배점과 단계별 기준</caption><thead><tr><th scope="col">평가 영역</th><th scope="col">배점</th><th scope="col">만점 기준·필수 요소</th><th scope="col">부분 점수 기준</th></tr></thead><tbody>' +
+    rows.map(r => '<tr><th scope="row" style="vertical-align:top">'+esc(r[0])+'</th><td style="white-space:nowrap">'+esc(r[1])+'</td><td>'+esc(r[2])+'<p class="small" style="margin-top:6px">확인 요소: '+esc(r[4])+'</p></td><td>'+esc(r[3])+'</td></tr>').join('') +
+    '</tbody></table></div><div class="msg"><strong>평가할 때 함께 확인해요</strong><ul style="margin:6px 0;padding-left:20px"><li>필수 요소는 문장을 적은 것만이 아니라 설명·제출 자료·시연이 서로 맞고 타당할 때 충족으로 봅니다. 최상위 행의 필수 요소를 모두 충족하면 해당 영역 만점입니다.</li><li>문장 길이·예쁜 꾸밈·데이터 개수·모델의 정답률만으로 점수를 정하지 않습니다. 테스트에서 실패해도 실제 기록, 원인 분석과 개선 과정은 평가받을 수 있습니다.</li><li>미구현·미실시는 솔직하게 표시하세요. 계획은 계획으로 평가하며, 실제 구현·테스트·재테스트를 했다는 증거를 대신하지 않습니다. 예시의 가상 수치를 실제 결과처럼 쓰면 안 됩니다.</li><li>마이크로비트 영역의 ‘예외 처리’는 안전한 동작 구현 또는 미지원 동작의 한계를 실제로 확인하고 대안을 설명한 경우 인정합니다.</li><li>모둠 산출물과 함께 각자의 역할 기록·설명으로 개인별 이해와 참여를 확인합니다. 장비 고장 등 학생 책임이 아닌 제약은 교사가 제공하는 가상 실행·기록 등 동등한 대체 증거로 평가합니다.</li></ul></div></article>';
+}
+
+function project4HTML(lab, st) {
+  if (lab.id !== 4) return '';
+  return '<article class="card" id="project4Inquiry"><h3>📝 종합 프로젝트 · 문제 해결 탐구 기록</h3>' +
+    '<p class="lead">우리 주변의 문제를 찾아 AI가 배우고, 마이크로비트가 행동하도록 설계해 보세요. 1~4번은 계획·구현 과정에, 5번은 테스트 후 작성하세요. 아래 모델 불러오기부터 기존 실습을 이어서 진행할 수 있어요.</p>' +
+    '<p class="msg" style="margin-bottom:16px">문제 발견 → 데이터 수집 → AI 학습 → 마이크로비트 동작 → 테스트·개선<br><span class="small">답안은 이 브라우저에 자동 저장됩니다. 탐구 기록의 내용은 교사가 평가하며, 기존 결과 체크 점수에는 추가되지 않습니다.</span></p>' +
+    PROJECT4_QUESTIONS.map((q,i) => '<div class="note" style="margin-bottom:22px"><label for="'+q.id+'">'+(i+1)+'. '+esc(q.title)+'</label>' +
+      '<p class="small" id="'+q.id+'_hint" style="margin:5px 0 8px">'+esc(q.hint)+'</p>' +
+      '<textarea id="'+q.id+'" rows="5" maxlength="6000" data-project4="'+q.id+'" aria-describedby="'+q.id+'_hint" placeholder="우리 모둠의 생각과 실제 진행 내용을 적어 주세요.">'+esc((st.notes && st.notes[q.id]) || '')+'</textarea>' +
+      '<details class="ex"><summary>생각을 돕는 구체적인 예시 보기</summary><p class="small" style="margin-top:8px;white-space:pre-wrap;overflow-wrap:anywhere">'+esc(q.example)+'</p></details></div>').join('') +
+    '<p class="small">※ 얼굴·이름·목소리 등 개인정보는 되도록 수집하지 않고, 필요하면 선생님과 동의 절차를 확인하세요. 위험한 장치 대신 LED·소리로 안전하게 시연해도 됩니다. 결과 복사 시 탐구 기록은 기존 ‘글쓰기 2’ 칸에 함께 담깁니다.</p></article>';
+}
+
 function labHTML(lab, st) {
   const steps = lab.steps.map((s) => '<li>' + s.replace(/\{(\w+)\}/g, (m, k) => TM_LINKS[k] || '#') + '</li>').join('');
   const typeBox = lab.type === 'any'
@@ -1004,6 +1045,7 @@ function labHTML(lab, st) {
       '<div><dt>완성 조건</dt><dd>' + esc(lab.cond) + '</dd></div></dl></div>' +
     '</div>' +
     '<div class="stack">' +
+    project4HTML(lab, st) +
     '<div class="pair">' +
       '<article class="card"><h3><span class="n">1</span>모델 불러오기</h3>' +
         '<p class="lead"><a href="' + tmLink + '" target="_blank" rel="noopener">Teachable Machine</a>에서 학습시킨 뒤 [모델 내보내기 → 모델 업로드]의 <b>공유 링크</b>를 붙여 넣어요.</p>' + typeBox +
@@ -1041,10 +1083,11 @@ function labHTML(lab, st) {
         '<div class="small" id="serHelp" style="margin-top:8px"></div>' +
       '</div></div></article>' +
     '<article class="card"><h3><span class="n">5</span>생각 쓰기</h3>' + notes + '</article>' +
-    '<article class="card"><h3><span class="n">6</span>제출하고 자동 채점</h3>' +
-      '<p class="lead">제출하면 연결표의 신호마다 내 코드를 실제로 실행해서 확인해요. 조건을 모두 채울 때까지 여러 번 제출할 수 있고, 제출할 때마다 횟수가 쌓여요. 제출한 뒤 나오는 <b>[결과 복사하기]</b>로 복사해서 선생님 구글 시트에 붙여 넣으면 제출이 끝나요. 팀원 모두의 이름으로 기록돼요.</p>' +
-      '<button type="button" class="btn led" id="btnSubmit">제출하고 자동 채점</button>' +
-      '<div id="resultBox"></div><div id="mailBox"></div><div id="myCodeBox"></div></article>' +
+    '<article class="card"><h3><span class="n">6</span>결과 제출 · 결과 체크하기</h3>' +
+      '<p class="lead">제출하면 연결표의 신호마다 내 코드를 실제로 실행해서 확인해요. 조건을 모두 채울 때까지 여러 번 제출할 수 있고, 제출할 때마다 횟수가 쌓여요. 구글시트 연결이 설정되어 있으면 결과를 자동 저장하고, 서버에서 저장 완료 응답을 받은 뒤 완료를 표시해요. 자동 저장이 실패하면 아래 <b>[결과 복사하기]</b>로 수동 제출하세요. 팀원 모두의 이름으로 기록돼요.</p>' +
+      '<button type="button" class="btn led" id="btnSubmit">결과 제출 · 결과 체크하기</button>' +
+      '<div id="sheetAutoStatus" class="msg" role="status" style="display:none"></div><div id="resultBox"></div><div id="mailBox"></div><details class="ex"><summary>교사용 · 구글시트 자동 저장 연결 설정</summary><p class="small">함께 제공된 설정 안내에 따라 Apps Script 웹 앱을 배포한 뒤 주소를 입력하세요. 학번·이름이 포함되므로 교사 소유 시트와 접근 정책을 확인하세요.</p><button type="button" class="btn sm ghost" onclick="configureSheetEndpoint()">자동 저장 연결 주소 설정</button></details><div id="myCodeBox"></div></article>' +
+    project4RubricHTML(lab) +
     '</div>';
 }
 
@@ -1067,6 +1110,10 @@ function bindLab(lab, st) {
   $('#btnCodeCheck').addEventListener('click', onCodeCheck);
   $('#btnMcFull').addEventListener('click', toggleMcFull);
   $('#btnMcReload').addEventListener('click', mcMount);
+  $$('[data-project4]').forEach((ta) => ta.addEventListener('input', () => {
+    if (!st.notes) st.notes = {};
+    st.notes[ta.dataset.project4] = ta.value; save();
+  }));
   $$('[data-note]').forEach((ta) => ta.addEventListener('input', () => {
     st.notes[ta.dataset.note] = ta.value; save(); updateCounter(lab.notes.find((n) => n.id === ta.dataset.note));
   }));
@@ -1515,6 +1562,7 @@ function mailBody(info, full) {
     L_.push('연결표:\n' + (rows.join('\n') || '  (없음)'));
     L_.push('채점 항목:\n' + res.items.map((i) => '  ' + (i.ok ? '[O] ' : '[X] ') + i.label).join('\n'));
     lab.notes.forEach((n) => L_.push('글쓰기 - ' + n.label + '\n  ' + String((st.notes && st.notes[n.id]) || '').trim().replace(/\n/g, '\n  ')));
+    if (lab.id === 4) L_.push('종합 프로젝트 탐구 기록\n' + project4Text(st));
     L_.push('코드:\n' + code);
   }
   return L_.join('\n\n');
@@ -1546,6 +1594,7 @@ function sheetRows(info) {
   const { team, lab, st, res, code } = info;
   const group = team.length > 1 ? team.map((m) => m.name).join('·') : '';
   const notes = lab.notes.map((n) => String((st.notes && st.notes[n.id]) || '').trim());
+  if (lab.id === 4) notes[1] = (notes[1] || '') + '\n\n[종합 프로젝트 탐구 기록]\n' + project4Text(st);
   const map = mappedRows(st).map((r) => r.sig + ':' + r.cls + '=' + ACT[r.action].label).join(' / ');
   const when = new Date().toLocaleString('ko-KR');
   return team.map((m) => [when, m.sid, m.name, group, lab.id + '. ' + lab.title, res.pass ? '완성' : '미완성', res.okN + '/' + res.total,
@@ -1580,6 +1629,49 @@ function renderMailBox(info) {
 }
 
 let grading = false;
+
+/* 구글시트 저장: 서버의 저장 완료 응답을 받아야 성공으로 표시합니다. */
+function sheetEndpoint() {
+  if (CONFIG.sheetUrl) return CONFIG.sheetUrl;
+  try { return localStorage.getItem('ai_microbit_sheet_endpoint_v1') || ''; } catch(e) { return ''; }
+}
+function configureSheetEndpoint() {
+  const url = prompt('Google Apps Script 웹 앱 배포 URL(/exec)을 입력하세요. 취소하면 변경하지 않습니다.', sheetEndpoint());
+  if (url === null) return;
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(url.trim())) { alert('올바른 Apps Script 웹 앱 배포 주소를 입력하세요.'); return; }
+  try { localStorage.setItem('ai_microbit_sheet_endpoint_v1', url.trim()); alert('이 브라우저에 연결 주소를 저장했습니다. 다른 기기에서도 사용하려면 HTML의 CONFIG.sheetUrl에 이 주소를 넣어 배포하세요.'); }
+  catch(e) { alert('브라우저 저장이 제한되어 있습니다. HTML의 CONFIG.sheetUrl에 주소를 넣어 배포하세요.'); }
+}
+function sheetStatus(text, kind) {
+  const el = $('#sheetAutoStatus'); if (!el) return;
+  el.style.display = ''; el.className = 'msg ' + (kind || ''); el.textContent = text;
+}
+async function submitToGoogleSheet(info) {
+  const endpoint = sheetEndpoint();
+  if (!endpoint) { sheetStatus('결과 확인은 끝났지만 구글시트에는 저장되지 않았습니다. 교사가 자동 저장 연결 주소를 설정해야 합니다. 지금은 결과 복사하기로 수동 제출하세요.', 'err'); return; }
+  const requestId = 'req_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+  const payload = { requestId, headers: SHEET_HEAD, rows: sheetRows(info), notes: info.st.notes || {} };
+  sheetStatus('구글시트에 저장 중입니다. 완료 메시지가 나올 때까지 기다려 주세요.');
+  try {
+    await new Promise((resolve, reject) => {
+      const iframe = document.createElement('iframe'); iframe.name = requestId; iframe.style.display = 'none'; iframe.title = '제출 응답';
+      const form = document.createElement('form'); form.method = 'POST'; form.action = endpoint; form.target = requestId; form.style.display = 'none';
+      const input = document.createElement('input'); input.type = 'hidden'; input.name = 'payload'; input.value = JSON.stringify(payload); form.append(input);
+      let timer;
+      const cleanup = () => { clearTimeout(timer); window.removeEventListener('message', onMessage); form.remove(); iframe.remove(); };
+      const onMessage = e => {
+        if (!/^https:\/\/(?:script\.google\.com|(?:[a-z0-9-]+\.)?script\.googleusercontent\.com)$/.test(e.origin)) return;
+        if (!e.data || e.data.kind !== 'aiMicrobitSheetResult' || e.data.requestId !== requestId) return;
+        cleanup(); e.data.ok ? resolve() : reject(new Error(e.data.error || '서버 저장 오류'));
+      };
+      window.addEventListener('message', onMessage);
+      timer = setTimeout(() => { cleanup(); reject(new Error('저장 완료 응답을 받지 못했습니다. 시트에서 저장 여부를 먼저 확인하세요.')); }, 45000);
+      document.body.append(iframe, form); form.submit();
+    });
+    sheetStatus('구글시트 저장 완료! 모둠원별 결과와 실습 4 탐구 답안이 저장되었습니다.', 'ok');
+  } catch(e) { sheetStatus('저장을 확인하지 못했습니다: ' + e.message + ' 중복 제출을 피하려면 시트를 먼저 확인하고, 필요하면 결과 복사하기로 수동 제출하세요.', 'err'); }
+}
+
 async function onSubmit() {
   if (grading) return;
   const sid = S.student.sid.trim(), name = S.student.name.trim();
@@ -1587,7 +1679,7 @@ async function onSubmit() {
   const hm = halfMember();
   if (hm >= 0) { toast('팀원 ' + (hm + 2) + '의 학번과 이름을 둘 다 쓰거나, 둘 다 비워 주세요.'); $('#mSid' + (hm + 1)).focus(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
   const lab = curLab(), st = L(lab.id), btn = $('#btnSubmit');
-  grading = true; btn.disabled = true; btn.textContent = '내 코드를 실행해서 채점하는 중…';
+  grading = true; btn.disabled = true; btn.textContent = '내 코드의 동작을 확인하는 중…';
   try {
     await mcRequestSave();
     const code = effectiveCode(st);
@@ -1610,17 +1702,11 @@ async function onSubmit() {
       mailState = 'sending'; lastMail = mailInfo;
     }
     if (S.cur === lab.id) renderMailBox(mailInfo);
-    if (CONFIG.sheetUrl) {
-      const payload = {
-        sid, name, members: team, lab: lab.id, title: lab.title, pass: res.pass ? 1 : 0, score: res.okN + '/' + res.total, n: st.sub.n, first: st.sub.first,
-        real: st.real || 0, type: st.modelType, url: st.modelUrl, classes: st.classes, map: mappedRows(st).map((r) => r.sig + ':' + r.cls + '=' + ACT[r.action].label),
-        code, notes: st.notes, ts: Date.now()
-      };
-      fetch(CONFIG.sheetUrl, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) }).catch(() => { /* 전송 실패는 결과 코드로 대신 제출 */ });
-    }
+    await submitToGoogleSheet(mailInfo);
+
   } finally {
     grading = false;
-    const b = $('#btnSubmit'); if (b) { b.disabled = false; b.textContent = '제출하고 자동 채점'; }
+    const b = $('#btnSubmit'); if (b) { b.disabled = false; b.textContent = '결과 제출 · 결과 체크하기'; }
   }
 }
 
@@ -1640,7 +1726,7 @@ function renderResult(res) {
   } else {
     html += '<p class="small">마지막 제출: ' + last.okN + '/' + last.total + '개 충족. 고친 뒤 다시 제출하면 자세한 안내가 나와요.</p>';
   }
-  if (CONFIG.sheetUrl && res) html += '<p class="small" style="margin-top:8px">결과를 선생님께 전송했어요. (선생님 시트·메일에 도착해요)</p>';
+
   box.innerHTML = html;
   my.innerHTML = '';
 }
