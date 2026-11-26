@@ -395,12 +395,9 @@ const LABS = [
     standard: '문제 해결에 알맞은 인공지능 모델을 선택해 학습시키고, 피지컬 컴퓨팅 장치로 구현해 개선한다.',
     expect: '해결할 문제에 맞는 모델과 출력 방식을 스스로 선택하고, 한계와 개선점을 설명할 수 있다.',
     minClasses: 3, minActions: 4, minTest: 3, minGroups: 2,
-    cond: '클래스 3개 이상 · 인식해서 보내 본 클래스 3개 이상 · 코드를 실행하면 연결표대로 움직임 · 글쓰기',
+    cond: '클래스 3개 이상 · 인식해서 보내 본 클래스 3개 이상 · 코드를 실행하면 연결표대로 움직임',
     example: exOne('basic.showIcon(IconNames.Happy)'),
-    notes: [
-      { id: 'n1', label: '어떤 문제를 해결하려고 하나요? 누가 어떻게 사용하나요?', hint: '예) 도서관에서 큰 소리가 나면 LED로 조용히 하라고 알려 주는 장치', min: 30 },
-      { id: 'n2', label: '모델을 고른 까닭과, 더 좋게 만들 방법을 써 보세요.', hint: '왜 이미지/포즈/소리 중 이 모델을 골랐는지, 잘못 인식한 경우를 어떻게 줄일지 써 보세요.', min: 30 }
-    ],
+    notes: [],
     steps: [
       '해결하고 싶은 문제를 정하고, 알맞은 모델(이미지·포즈·소리)을 골라요. 1번 칸에서 모델 종류를 선택할 수 있어요.',
       'Teachable Machine에서 모델을 만들어 업로드하고 링크를 1번 칸에 붙여 넣어요. 클래스는 3개 이상이에요.',
@@ -1100,8 +1097,8 @@ function labHTML(lab, st) {
         '<button type="button" class="btn sm" id="btnSerial">마이크로비트 연결</button>' +
         '<div class="small" id="serHelp" style="margin-top:8px"></div>' +
       '</div></div></article>' +
-    '<article class="card"><h3><span class="n">6</span>생각쓰기</h3><p class="small">위쪽 탐구 질문 1~5의 답안에 이어, 실습하면서 생각한 내용을 정리하세요. 제출하면 앞선 답안과 함께 번호순으로 저장됩니다.</p>' + notes + '</article>' +
-    '<article class="card"><h3><span class="n">6</span>결과 제출 · 결과 체크하기</h3>' +
+    (lab.notes.length ? '<article class="card"><h3><span class="n">6</span>생각쓰기</h3><p class="small">위쪽 탐구 질문 1~5의 답안에 이어, 실습하면서 생각한 내용을 정리하세요. 제출하면 앞선 답안과 함께 번호순으로 저장됩니다.</p>' + notes + '</article>' : '') +
+    '<article class="card"><h3><span class="n">' + (lab.id === 4 ? 5 : 6) + '</span>결과 제출 · 결과 체크하기</h3>' +
       '<p class="lead">제출하면 연결표의 신호마다 내 코드를 실제로 실행해서 확인해요. 조건을 모두 채울 때까지 여러 번 제출할 수 있고, 제출할 때마다 횟수가 쌓여요. 구글시트 연결이 설정되어 있으면 결과를 자동 저장하고, 서버에서 저장 완료 응답을 받은 뒤 완료를 표시해요. 자동 저장이 실패하면 아래 <b>[결과 복사하기]</b>로 수동 제출하세요. 팀원 모두의 이름으로 기록돼요.</p>' +
       '<button type="button" class="btn led" id="btnSubmit">결과 제출 · 결과 체크하기</button>' +
       '<div id="sheetAutoStatus" class="msg" role="status" style="display:none"></div><div id="resultBox"></div><div id="mailBox"></div><div id="myCodeBox"></div></article>' +
@@ -1613,7 +1610,7 @@ function sheetRows(info) {
   const { team, lab, st, res, code } = info;
   const group = team.length > 1 ? team.map((m) => m.name).join('·') : '';
   const reflection = lab.notes.map((n,i) => '6.' + (i+1) + ' ' + n.label + '\n' + String((st.notes && st.notes[n.id]) || '').trim()).join('\n\n');
-  const writing = lab.id === 4 ? project4Text(st) + '\n\n6. 생각쓰기\n' + reflection : lab.notes.map((n,i) => (i+1) + '. ' + n.label + '\n' + String((st.notes && st.notes[n.id]) || '').trim()).join('\n\n');
+  const writing = lab.id === 4 ? project4Text(st) : lab.notes.map((n,i) => (i+1) + '. ' + n.label + '\n' + String((st.notes && st.notes[n.id]) || '').trim()).join('\n\n');
   const map = mappedRows(st).map((r) => r.sig + ':' + r.cls + '=' + ACT[r.action].label).join(' / ');
   const when = new Date().toLocaleString('ko-KR');
   return team.map((m) => [when, m.sid, m.name, group, lab.id + '. ' + lab.title, res.pass ? '완성' : '미완성', res.okN + '/' + res.total,
