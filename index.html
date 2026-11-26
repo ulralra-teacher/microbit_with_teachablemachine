@@ -1035,7 +1035,7 @@ function project4HTML(lab, st) {
       '<p class="small" id="'+q.id+'_hint" style="margin:5px 0 8px">'+esc(q.hint)+'</p>' +
       '<textarea id="'+q.id+'" rows="5" maxlength="6000" data-project4="'+q.id+'" aria-describedby="'+q.id+'_hint" placeholder="우리 모둠의 생각과 실제 진행 내용을 적어 주세요.">'+esc((st.notes && st.notes[q.id]) || '')+'</textarea>' +
       '<details class="ex"><summary>생각을 돕는 구체적인 예시 보기</summary><p class="small" style="margin-top:8px;white-space:pre-wrap;overflow-wrap:anywhere">'+esc(q.example)+'</p></details></div>').join('') +
-    '<p class="small">※ 얼굴·이름·목소리 등 개인정보는 되도록 수집하지 않고, 필요하면 선생님과 동의 절차를 확인하세요. 위험한 장치 대신 LED·소리로 안전하게 시연해도 됩니다. 아래 ‘6. 생각쓰기’까지 작성하면 탐구 질문 1~5와 함께 하나의 ‘글쓰기’ 칸에 번호순으로 저장됩니다.</p></article>';
+    '<p class="small">※ 얼굴·이름·목소리 등 개인정보는 되도록 수집하지 않습니다. 위험한 장치 대신 LED·소리로 안전하게 시연해도 됩니다.</p></article>';
 }
 
 function labHTML(lab, st) {
