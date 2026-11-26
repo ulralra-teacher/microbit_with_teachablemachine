@@ -240,7 +240,7 @@ footer{padding:26px 0 40px;color:var(--mute);font-size:.85rem}
 </footer>
 
 <dialog id="dlg"></dialog>
-<div id="toast" role="status" aria-live="polite" class="show">연결 설정을 적용했습니다. 학생 배포 시 설정 포함 HTML을 내려받으세요.</div>
+<div id="toast" role="status" aria-live="polite"></div>
 <script>
 'use strict';
 /* ============================================================
@@ -1679,6 +1679,7 @@ function setupTeacherTools() {
     const members = clone.querySelector('#memberBox');if(members)members.innerHTML='';
     ['#labView','#tabs'].forEach(sel=>{const el=clone.querySelector(sel);if(el)el.innerHTML='';});
     ['#stDone','#stSub'].forEach(sel=>{const el=clone.querySelector(sel);if(el)el.textContent='0';});
+    const note = clone.querySelector('#toast');if(note){note.textContent='';note.removeAttribute('class');}
     const source = '<!doctype html>\n'+clone.outerHTML;
     const blob = new Blob([source],{type:'text/html;charset=utf-8'}), url=URL.createObjectURL(blob), a=document.createElement('a');
     a.href=url;a.download='AI_microbit_설정완료.html';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
